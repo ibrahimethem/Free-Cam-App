@@ -1,0 +1,39 @@
+__pycache__/
+*.pyc
+.DS_Store
+ios/FreeCam.xcodeproj/
+ios/Info.plist
+DerivedData/
+.venv/
+build/
+dist/
+
+# Generated release packages and local previews
+/*.zip
+/*.jpg
+/desktop/*-preview.png
+/desktop/native-desktop-idle.png
+
+# Local credentials and signing material
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.mobileprovision
+*.provisionprofile
+
+# Xcode per-user state and build output
+xcuserdata/
+*.xcuserstate
+*.xcarchive/
+.build/
+
+# Local tools and editor settings
+.codex/
+.agents/
+.aws/
+.idea/
+.vscode/
+*.log
+Thumbs.db

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Free Cam</title>
+<style>
+  :root { color-scheme: dark; font-family: system-ui, sans-serif; background:#101418; color:#edf4f6 }
+  body { max-width:960px; margin:40px auto; padding:0 24px }
+  h1 { font-size:40px; margin-bottom:8px } p { color:#acbdc5; line-height:1.6 }
+  .controls { display:flex; gap:12px; flex-wrap:wrap; margin:24px 0 }
+  input,button { padding:13px 18px; border-radius:10px; font:inherit; border:1px solid #3b505b }
+  input { background:#19232b; color:inherit } button { background:#89e4bb; color:#10261c; cursor:pointer }
+  .preview { background:#080b0d; border-radius:16px; min-height:320px; display:grid; place-items:center; overflow:hidden }
+  img { width:100%; max-height:70vh; object-fit:contain } code { overflow-wrap:anywhere }
+  .settings { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; margin:24px 0 }
+  fieldset { min-width:0; border:1px solid #3b505b; border-radius:12px; padding:16px }
+  legend { font-weight:600 } label { display:block; margin:12px 0 }
+  label input[type=number] { display:block; width:100%; box-sizing:border-box; margin-top:6px }
+  input[type=checkbox] { accent-color:#89e4bb } input[type=range] { width:100%; padding:0 }
+  :disabled { opacity:0.45; cursor:default }
+  .readings { font-size:14px; min-height:45px } #control-status { min-height:24px }
+</style>
+<h1>Free Cam</h1>
+<p>Your iPhone camera, on your computer. Connect both devices to the same Wi-Fi.</p>
+<form class="controls" id="pair">
+  <input id="key" type="password" placeholder="Pairing key from terminal" aria-label="Pairing key" required autocomplete="off">
+  <button>Connect preview</button>
+  <button id="disconnect" type="button" hidden>Disconnect</button>
+</form>
+<p id="status" role="status">Start the receiver, then enter its pairing key.</p>
+<div class="preview"><img id="video" alt="iPhone camera preview" hidden></div>
+<h2>Camera settings</h2>
+<p>Adjust the iPhone camera directly. Supported controls and ISO/shutter limits come from the selected camera.</p>
+<p id="control-status" role="status">Connect your iPhone to enable camera controls.</p>
+<div class="settings" id="settings">
+  <fieldset id="exposure-group" disabled>
+    <legend>Exposure</legend>
+    <label><input id="exposureAuto" type="checkbox" checked> Auto exposure</label>
+    <label>ISO <input id="iso" type="number" step="any"></label>
+    <label>Shutter duration (ms) <input id="shutterMs" type="number" step="any"></label>
+    <p class="readings" id="exposure-reading">Waiting for camera.</p>
+    <button type="button" data-group="exposure">Apply exposure</button>
+  </fieldset>
+  <fieldset id="focus-group" disabled>
+    <legend>Focus</legend>
+    <label><input id="focusAuto" type="checkbox" checked> Auto focus</label>
+    <label>Lens position <input id="focus" type="range" min="0" max="1" step="0.01" value="0.5"><output id="focus-value">0.50</output></label>
+    <p class="readings" id="focus-reading">0 = nearest · 1 = furthest. This is not a distance in meters.</p>
+    <button type="button" data-group="focus">Apply focus</button>
+  </fieldset>
+  <fieldset id="wb-group" disabled>
+    <legend>White balance</legend>
+    <label><input id="whiteBalanceAuto" type="checkbox" checked> Auto white balance</label>
+    <label>Temperature (K) <input id="temperature" type="number" min="2000" max="10000" step="any"></label>
+    <label>Tint <input id="tint" type="number" min="-150" max="150" step="any"></label>
+    <p class="readings" id="wb-reading">Waiting for camera.</p>
+    <button type="button" data-group="wb">Apply white balance</button>
+  </fieldset>
+  <fieldset id="zoom-group" disabled>
+    <legend>Zoom</legend>
+    <label>Zoom factor <input id="zoom" type="range" min="1" max="2" step="any" value="1"><output id="zoom-value">1.00×</output></label>
+    <p class="readings" id="zoom-reading">Waiting for camera.</p>
+    <button type="button" data-group="zoom">Apply zoom</button>
+  </fieldset>
+</div>
+<p>Long exposures reduce the frame rate. White balance temperature/tint are converted to gains and bounded by the camera; live readings show the resulting values. Changes take effect when you click Apply.</p>
+<p>In OBS, add a <strong>Media Source</strong>, uncheck <strong>Local File</strong>, and paste this address:</p>
+<code id="obs">Connect to show the stream address.</code>
+<p>Then select <strong>Start Virtual Camera</strong> in OBS and choose <strong>OBS Virtual Camera</strong> in your calling app.</p>
+<script src="/app.js"></script>
+</html>

@@ -1,0 +1,42 @@
+name: FreeCam
+options:
+  bundleIdPrefix: com.freecam
+  deploymentTarget:
+    iOS: '26.0'
+targets:
+  FreeCam:
+    type: application
+    platform: iOS
+    sources: [FreeCam]
+    settings:
+      base:
+        SWIFT_VERSION: '5.0'
+        TARGETED_DEVICE_FAMILY: '1'
+        PRODUCT_BUNDLE_IDENTIFIER: com.freecam.personal
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: Free Cam
+        UILaunchScreen: {}
+        NSCameraUsageDescription: Free Cam uses your camera to stream video to your computer.
+        NSLocalNetworkUsageDescription: Free Cam connects to the receiver on your local Wi-Fi network.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+  FreeCamTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [FreeCamTests]
+    dependencies:
+      - target: FreeCam
+    settings:
+      base:
+        SWIFT_VERSION: '5.0'
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  FreeCam:
+    build:
+      targets:
+        FreeCam: all
+    test:
+      targets: [FreeCamTests]
