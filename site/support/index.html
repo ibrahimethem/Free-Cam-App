@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Setup help and support for NoSub Cam and NoSub Studio."><meta name="theme-color" content="#181a1a">
+  <title>Support — NoSub Cam</title><link rel="icon" href="../assets/app-icon.png"><link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header"><nav class="nav shell" aria-label="Primary navigation"><a class="brand" href="../"><img src="../assets/app-icon.png" alt=""><span>NoSub Cam</span></a><div class="nav-links"><a href="../download/">Downloads</a><a href="../privacy/">Privacy</a><a href="../terms/">Terms</a></div></nav></header>
+  <main id="main">
+    <header class="legal-hero"><div class="shell"><div class="eyebrow">Help / Setup</div><h1>Support</h1><p>Get NoSub Cam and NoSub Studio connected over local Wi-Fi or Direct USB.</p></div></header>
+    <div class="document shell">
+      <nav class="document-nav" aria-label="Support sections"><a href="#contact">Contact</a><a href="#requirements">Requirements</a><a href="#setup">Quick setup</a><a href="#wifi">Wi-Fi issues</a><a href="#usb">USB issues</a><a href="#permissions">Permissions</a><a href="#safe">Safe diagnostics</a></nav>
+      <article class="document-body">
+        <section id="contact"><h2>Contact</h2><div class="contact-box"><strong>Support email</strong><br><a href="mailto:nosubcam-support@ethemkarali.com">nosubcam-support@ethemkarali.com</a><p>Typical response target: 5 business days.</p></div><p>Include your iPhone model, iOS version, computer operating system, connection mode, and exact error message. Do not send pairing keys, private stream URLs, camera footage, or other sensitive content.</p></section>
+        <section id="requirements"><h2>Requirements</h2><ul><li>iPhone running iOS 26 or later.</li><li>macOS or Windows computer running NoSub Studio.</li><li>For Wi-Fi: both devices on the same trusted private network.</li><li>For Direct USB: a data-capable cable, unlocked and trusted iPhone, and Apple's USB device service.</li><li>OBS Studio is currently required when the stream must appear as a virtual webcam in another application.</li></ul></section>
+        <section id="setup"><h2>Quick setup</h2><ol><li>Install and open NoSub Studio on the computer.</li><li>Select Wi-Fi or Direct USB.</li><li>Enter the displayed receiver address and pairing key in NoSub Cam.</li><li>Grant camera and local-network permission when requested.</li><li>Tap <strong>Start streaming</strong> and keep NoSub Cam in the foreground.</li></ol></section>
+        <section id="wifi"><h2>The iPhone cannot connect over Wi-Fi</h2><p>Confirm both devices are on the same private Wi-Fi, Local Network permission is enabled for NoSub Cam, and the computer firewall allows NoSub Studio. Do not use <code>127.0.0.1</code> as the receiver address on the iPhone.</p></section>
+        <section id="usb"><h2>Direct USB does not list the iPhone</h2><p>Unlock the iPhone, reconnect a data-capable cable, accept the Trust prompt, and refresh devices in NoSub Studio. Windows requires the Apple Mobile Device driver/service. macOS supplies the required service.</p></section>
+        <section id="permissions"><h2>Camera or Local Network permission was denied</h2><p>Open iOS <strong>Settings → Privacy &amp; Security</strong>, then enable NoSub Cam under Camera and Local Network.</p></section>
+        <section id="safe"><h2>Safe diagnostics</h2><p>Pairing keys and OBS stream URLs grant access to the current local receiver session. Treat them as private. Restarting the receiver rotates the key.</p><div class="notice"><strong>Network</strong><p>Wi-Fi video is not encrypted. Use only a trusted local network and never forward the receiver port from your router.</p></div></section>
+      </article>
+    </div>
+  </main>
+  <footer class="site-footer"><div class="shell footer-row"><span>© 2026 İbrahim Ethem Karalı</span><div class="footer-links"><a href="../">Home</a><a href="../privacy/">Privacy</a><a href="../terms/">Terms</a></div></div></footer>
+</body>
+</html>
