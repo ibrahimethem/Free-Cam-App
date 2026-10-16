@@ -2,26 +2,34 @@
 setlocal
 cd /d "%~dp0"
 
-rem Build a separate environment; macOS virtual environments cannot be reused.
-if exist ".venv-windows\Scripts\python.exe" goto install
-where py >nul 2>nul
+rem Validate interpreters: Windows Store aliases and copied environments may exist but fail.
+set "STUDIO_PYTHON=%~dp0.venv\Scripts\python.exe"
+"%STUDIO_PYTHON%" -c "import sys; assert sys.platform == 'win32'" >nul 2>nul
+if not errorlevel 1 goto install
+set "STUDIO_PYTHON=%~dp0.venv-windows\Scripts\python.exe"
+"%STUDIO_PYTHON%" -c "import sys; assert sys.platform == 'win32'" >nul 2>nul
+if not errorlevel 1 goto install
+py -3 -c "import sys; assert sys.platform == 'win32'" >nul 2>nul
 if errorlevel 1 goto use_python
 py -3 -m venv .venv-windows
 if errorlevel 1 goto failed
+set "STUDIO_PYTHON=%~dp0.venv-windows\Scripts\python.exe"
 goto install
 
 :use_python
-where python >nul 2>nul
+python -c "import sys; assert sys.platform == 'win32'" >nul 2>nul
 if errorlevel 1 goto missing_python
 python -m venv .venv-windows
 if errorlevel 1 goto failed
+set "STUDIO_PYTHON=%~dp0.venv-windows\Scripts\python.exe"
 
 :install
-".venv-windows\Scripts\python.exe" -m pip install -r desktop\requirements.txt
+echo Using Python: "%STUDIO_PYTHON%"
+"%STUDIO_PYTHON%" -m pip install -r desktop\requirements.txt
 if errorlevel 1 goto failed
 echo.
 echo Starting NoSub Studio. Keep this window open while testing.
-".venv-windows\Scripts\python.exe" desktop\app.py
+"%STUDIO_PYTHON%" "%~dp0desktop\app.py" %*
 if errorlevel 1 goto failed
 exit /b 0
 
