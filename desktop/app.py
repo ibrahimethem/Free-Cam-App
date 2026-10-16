@@ -37,6 +37,10 @@ SUPPORT_URL = "https://ibrahimethem.github.io/Free-Cam-App/support/"
 class StudioComboBox(QComboBox):
     """Combo box with a visible, platform-independent studio-style chevron."""
 
+    def wheelEvent(self, event):
+        # Pass scrolling up to the settings panel without changing the selection.
+        event.ignore()
+
     def paintEvent(self, event):
         super().paintEvent(event)
         painter = QPainter(self)

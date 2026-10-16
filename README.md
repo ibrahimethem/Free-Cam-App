@@ -203,8 +203,9 @@ up to 8 MB; if a high-resolution frame exceeds that limit, select a lower resolu
 Rebuild the updated iPhone app to enable these features. Older builds still stream
 and accept sensor controls, but the desktop resolution and frame-rate selectors show an update hint.
 
-- **Exposure:** turn off Automatic, enter ISO and shutter duration in milliseconds,
-  and changes apply automatically. For example, 8.33 ms is approximately 1/120 second.
+- **Exposure:** turn off Automatic, enter ISO and shutter speed (for example,
+  `1/125` or `0.5` seconds), and changes apply automatically. Camera messages
+  and saved presets still store the exposure duration in milliseconds.
   ISO and shutter must be locked together; the phone reports its active format's ranges.
 - **Focus:** turn off Automatic and adjust lens position from 0 (nearest) to 1
   (furthest). Changes apply automatically. The value is not a calibrated distance in meters.

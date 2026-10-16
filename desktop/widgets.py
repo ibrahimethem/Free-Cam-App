@@ -1,6 +1,7 @@
 import math
 
 from PySide6.QtCore import Qt, Signal, QTimer
+from PySide6.QtGui import QValidator
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlider,
                                QDoubleSpinBox, QCheckBox, QFrame, QStyle,
                                QStyleOptionSlider)
@@ -8,7 +9,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlide
 
 GROUPS = {
     "exposure": {"title": "Exposure", "mode": "exposureAuto", "manual": "manualExposure", "auto": "autoExposure",
-                 "fields": [("iso", "ISO", "", 0), ("shutterMs", "Shutter", " ms", 3)]},
+                 "fields": [("iso", "ISO", "", 0), ("shutterMs", "Shutter speed", "", 3)]},
     "wb": {"title": "White balance", "mode": "whiteBalanceAuto", "manual": "manualWhiteBalance", "auto": "autoWhiteBalance",
            "fields": [("temperature", "Temperature", " K", 0), ("tint", "Tint", "", 1)]},
     "focus": {"title": "Focus", "mode": "focusAuto", "manual": "manualFocus", "auto": "autoFocus",
@@ -22,6 +23,49 @@ def label(text, name="muted"):
     widget.setObjectName(name)
     widget.setWordWrap(name not in ("brand", "subtitle", "badge"))
     return widget
+
+
+def shutter_text(milliseconds):
+    if milliseconds <= 0 or not math.isfinite(milliseconds):
+        return "—"
+    if milliseconds >= 1000:
+        return f"{milliseconds / 1000:g} s"
+    denominator = 1000 / milliseconds
+    nearest = round(denominator)
+    if abs(denominator - nearest) <= denominator * 0.001:
+        return f"1/{nearest} s"
+    return f"1/{denominator:.2f} s"
+
+
+class ShutterSpinBox(QDoubleSpinBox):
+    """Edit seconds/fractions while retaining milliseconds for camera commands."""
+
+    def textFromValue(self, value):
+        return shutter_text(value)
+
+    def valueFromText(self, text):
+        value = text.strip().lower().removesuffix("s").strip()
+        if "/" in value:
+            numerator, denominator = value.split("/")
+            return 1000 * float(numerator) / float(denominator)
+        return 1000 * float(value)
+
+    def validate(self, text, position):
+        value = text.strip().lower().removesuffix("s").strip()
+        if value in ("", ".") or value.endswith(("/", "/.")):
+            state = QValidator.State.Intermediate
+        else:
+            try:
+                milliseconds = self.valueFromText(text)
+                if not math.isfinite(milliseconds) or milliseconds <= 0:
+                    state = QValidator.State.Invalid
+                elif self.minimum() <= milliseconds <= self.maximum():
+                    state = QValidator.State.Acceptable
+                else:
+                    state = QValidator.State.Intermediate
+            except (ValueError, ZeroDivisionError):
+                state = QValidator.State.Invalid
+        return state, text, position
 
 
 class ClickableSlider(QSlider):
@@ -58,7 +102,7 @@ class Parameter(QWidget):
         layout.setSpacing(4)
         row = QHBoxLayout()
         row.addWidget(label(title, ""))
-        self.spin = QDoubleSpinBox()
+        self.spin = ShutterSpinBox() if name == "shutterMs" else QDoubleSpinBox()
         self.spin.setDecimals(decimals)
         self.spin.setSuffix(suffix)
         self.spin.setKeyboardTracking(False)
@@ -74,7 +118,7 @@ class Parameter(QWidget):
         self.slider.valueChanged.connect(self.from_slider)
         self.spin.valueChanged.connect(self.from_spin)
         if name == "shutterMs":
-            self.spin.setToolTip("Exposure duration in milliseconds. Longer shutter times can lower FPS.")
+            self.spin.setToolTip("Enter shutter speed as 1/125 or seconds as 0.5. Longer exposures can lower FPS.")
         elif name == "focus":
             self.spin.setToolTip("0 = nearest, 1 = furthest. Lens position is not a distance in meters.")
 
@@ -158,7 +202,8 @@ class ControlGroup(QFrame):
         parts = []
         for name, title, suffix, decimals in self.definition["fields"]:
             value = camera["current"][name]
-            parts.append(f"{title} {value:.{decimals}f}{suffix}")
+            formatted = shutter_text(value) if name == "shutterMs" else f"{value:.{decimals}f}{suffix}"
+            parts.append(f"{title} {formatted}")
         mode = " · auto" if self.auto and camera["current"][self.definition["mode"]] else ""
         self.reading.setText("Live: " + " · ".join(parts) + mode)
 
