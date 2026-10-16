@@ -1,0 +1,15 @@
+devices([
+  "iPhone 17 Pro Max"
+])
+
+languages([
+  "en-US"
+])
+
+scheme("FreeCam Screenshots")
+project("ios/FreeCam.xcodeproj")
+reinstall_app(true)
+clear_previous_screenshots(true)
+override_status_bar(true)
+launch_arguments(["--snapshot"])
+output_directory("fastlane/screenshots")

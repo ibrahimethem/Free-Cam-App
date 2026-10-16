@@ -1,0 +1,192 @@
+opt_out_usage
+default_platform(:ios)
+
+ROOT_DIRECTORY = File.expand_path("..", File.dirname(__FILE__))
+IOS_DIRECTORY = File.join(ROOT_DIRECTORY, "ios")
+PROJECT = File.join(IOS_DIRECTORY, "FreeCam.xcodeproj")
+SCHEME = "FreeCam"
+SCREENSHOT_SCHEME = "FreeCam Screenshots"
+APP_IDENTIFIER = "com.ethem.nosubcam"
+APP_NAME = "NoSub Cam"
+APP_VERSION = "1.0.0"
+SKU = "nosub-cam-ios-001"
+DEVELOPMENT_TEAM = "G478PYWXZ4"
+APPLE_ID = "ibrhmkarali@icloud.com"
+BUILD_DIRECTORY = File.join(ROOT_DIRECTORY, "fastlane/build")
+METADATA_DIRECTORY = File.join(ROOT_DIRECTORY, "fastlane/metadata")
+SCREENSHOT_DIRECTORY = File.join(ROOT_DIRECTORY, "fastlane/screenshots")
+PRIVACY_DETAILS = File.join(ROOT_DIRECTORY, "fastlane/app_privacy_details.json")
+
+platform :ios do
+  desc "Create the App ID and App Store Connect record (one-time, interactive if needed)"
+  lane :create_app_record do
+    produce(
+      username: APPLE_ID,
+      app_identifier: APP_IDENTIFIER,
+      app_name: APP_NAME,
+      language: "English",
+      app_version: APP_VERSION,
+      sku: SKU,
+      team_id: DEVELOPMENT_TEAM
+    )
+  end
+
+  desc "Validate local files required for screenshots and App Store upload"
+  lane :validate_release do
+    generate_project
+    required = [
+      File.join(IOS_DIRECTORY, "FreeCam/PrivacyInfo.xcprivacy"),
+      File.join(IOS_DIRECTORY, "FreeCam/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"),
+      File.join(METADATA_DIRECTORY, "en-US/description.txt"),
+      File.join(METADATA_DIRECTORY, "age_rating.json"),
+      PRIVACY_DETAILS
+    ]
+    missing = required.reject { |path| File.exist?(path) }
+    UI.user_error!("Missing release files: #{missing.join(', ')}") unless missing.empty?
+
+    phone = ENV["REVIEW_PHONE"].to_s.strip
+    UI.important("REVIEW_PHONE is not set; screenshot and metadata lanes work, but release upload will require it.") if phone.empty?
+    UI.success("NoSub Cam release files are ready.")
+  end
+
+  desc "Capture deterministic English App Store screenshots"
+  lane :screenshots do
+    generate_project
+    capture_screenshots(
+      project: PROJECT,
+      scheme: SCREENSHOT_SCHEME,
+      output_directory: SCREENSHOT_DIRECTORY
+    )
+  end
+
+  desc "Upload English metadata and screenshots without a binary"
+  lane :store_assets do
+    api_key = load_app_store_connect_api_key
+    upload_to_app_store(**deliver_options(
+      api_key: api_key,
+      skip_binary_upload: true,
+      skip_metadata: false,
+      skip_screenshots: false
+    ))
+  end
+
+  desc "Upload the current no-data-collected App Privacy answer"
+  lane :privacy do
+    upload_app_privacy_details_to_app_store(
+      username: APPLE_ID,
+      app_identifier: APP_IDENTIFIER,
+      json_path: PRIVACY_DETAILS
+    )
+  end
+
+  desc "Build and upload the next TestFlight build"
+  lane :beta do |options|
+    validate_release
+    api_key = load_app_store_connect_api_key
+    build_number = next_build_number(api_key: api_key)
+    ipa = build_release(build_number: build_number)
+    upload_options = {
+      app_identifier: APP_IDENTIFIER,
+      ipa: ipa,
+      skip_waiting_for_build_processing: true
+    }
+    upload_options[:api_key] = api_key if api_key
+    upload_options[:changelog] = options[:changelog] if options[:changelog]
+    upload_to_testflight(**upload_options)
+  end
+
+  desc "Capture screenshots, build, and upload everything without submitting for review"
+  lane :release do |options|
+    validate_release
+    require_review_phone
+    api_key = load_app_store_connect_api_key
+    screenshots unless options[:screenshots].to_s == "false"
+    build_number = next_build_number(api_key: api_key)
+    ipa = build_release(build_number: build_number)
+    upload_to_app_store(**deliver_options(
+      api_key: api_key,
+      ipa: ipa,
+      skip_binary_upload: false,
+      skip_metadata: false,
+      skip_screenshots: options[:screenshots].to_s == "false"
+    ))
+    UI.success("Binary, metadata, and screenshots uploaded. Select the processed build in App Store Connect and submit it when ready.")
+  end
+
+  private_lane :generate_project do
+    Dir.chdir(IOS_DIRECTORY) { sh("xcodegen", "generate") }
+  end
+
+  private_lane :require_review_phone do
+    UI.user_error!("Set REVIEW_PHONE in .env using international format.") if ENV["REVIEW_PHONE"].to_s.strip.empty?
+  end
+
+  private_lane :load_app_store_connect_api_key do
+    key_id = ENV["ASC_KEY_ID"].to_s
+    key_file = ENV["ASC_KEY_FILE"].to_s
+    next nil if key_id.empty? && key_file.empty?
+    UI.user_error!("ASC_KEY_ID and ASC_KEY_FILE must both be set.") if key_id.empty? || key_file.empty?
+
+    app_store_connect_api_key(
+      key_id: key_id,
+      issuer_id: ENV["ASC_ISSUER_ID"].to_s.empty? ? nil : ENV["ASC_ISSUER_ID"],
+      key_filepath: File.expand_path(key_file),
+      duration: 1_200,
+      in_house: false
+    )
+  end
+
+  private_lane :next_build_number do |options|
+    lookup = {
+      app_identifier: APP_IDENTIFIER,
+      version: APP_VERSION,
+      initial_build_number: 0
+    }
+    lookup[:api_key] = options[:api_key] if options[:api_key]
+    latest_testflight_build_number(**lookup) + 1
+  end
+
+  private_lane :build_release do |options|
+    build_app(
+      project: PROJECT,
+      scheme: SCHEME,
+      configuration: "Release",
+      clean: true,
+      export_method: "app-store",
+      export_team_id: DEVELOPMENT_TEAM,
+      output_directory: BUILD_DIRECTORY,
+      output_name: "NoSub-Cam-#{APP_VERSION}-#{options[:build_number]}.ipa",
+      xcargs: "-allowProvisioningUpdates MARKETING_VERSION=#{APP_VERSION} CURRENT_PROJECT_VERSION=#{options[:build_number]}"
+    )
+  end
+
+  private_lane :deliver_options do |options|
+    result = {
+      app_identifier: APP_IDENTIFIER,
+      app_version: APP_VERSION,
+      metadata_path: METADATA_DIRECTORY,
+      screenshots_path: SCREENSHOT_DIRECTORY,
+      app_rating_config_path: File.join(METADATA_DIRECTORY, "age_rating.json"),
+      skip_binary_upload: options[:skip_binary_upload],
+      skip_metadata: options[:skip_metadata],
+      skip_screenshots: options[:skip_screenshots],
+      overwrite_screenshots: true,
+      submit_for_review: false,
+      automatic_release: false,
+      precheck_include_in_app_purchases: false,
+      force: true,
+      app_review_information: {
+        first_name: "İbrahim Ethem",
+        last_name: "Karalı",
+        phone_number: ENV["REVIEW_PHONE"].to_s,
+        email_address: "nosubcam-support@ethemkarali.com",
+        demo_user: "",
+        demo_password: "",
+        notes: File.read(File.join(METADATA_DIRECTORY, "review_information/notes.txt"))
+      }
+    }
+    result[:api_key] = options[:api_key] if options[:api_key]
+    result[:ipa] = options[:ipa] if options[:ipa]
+    result
+  end
+end

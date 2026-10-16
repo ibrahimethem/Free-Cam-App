@@ -18,9 +18,9 @@ QFrame#panel { background: #343637; border: 1px solid #555859; border-radius: 3p
 QFrame#usbSetup { background: #343637; border: 1px solid #ffb16b; border-radius: 3px; }
 QLabel, QCheckBox { background: transparent; }
 QScrollArea, QScrollArea > QWidget > QWidget { background: #343637; border: none; }
-QLineEdit, QComboBox { background: #242627; border: 1px solid #555859; border-radius: 3px; padding: 6px; selection-background-color: #ffb16b; selection-color: #242627; }
+QLineEdit, QComboBox { background: #242627; border: 1px solid #555859; border-radius: 3px; padding: 7px 34px 7px 9px; min-height: 18px; selection-background-color: #ffb16b; selection-color: #242627; }
 QLineEdit:focus, QComboBox:focus { border-color: #ffb16b; }
-QComboBox::drop-down { border: none; width: 22px; }
+QComboBox::drop-down { background: #343637; border: none; border-left: 1px solid #555859; width: 28px; }
 QComboBox QAbstractItemView { background: #343637; selection-background-color: #ffb16b; selection-color: #242627; }
 QDoubleSpinBox { background: #242627; min-width: 100px; }
 QPushButton { background: #454849; border: 1px solid #606465; padding: 7px 10px; border-radius: 3px; font-weight: 500; }
@@ -30,6 +30,9 @@ QPushButton:focus { border-color: #ffb16b; }
 QPushButton#primary { background: #ffb16b; border: 1px solid #ffb16b; color: #242627; font-weight: 600; }
 QPushButton#primary:hover { background: #ffc28c; border-color: #ffc28c; }
 QPushButton#primary:pressed { background: #e79b57; }
+QPushButton#link { background: transparent; border: none; color: #ffb16b; padding: 5px 3px; font-size: 11px; }
+QPushButton#link:hover { background: #3b3e3f; color: #ffc28c; }
+QPushButton#link:pressed { background: #242627; color: #e79b57; }
 QWidget:disabled { color: #929791; }
 QPushButton:disabled { background: #343637; border-color: #4b4e4f; color: #929791; }
 QCheckBox { spacing: 7px; }

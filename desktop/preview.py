@@ -1,5 +1,5 @@
 from PySide6.QtCore import Qt, QRectF
-from PySide6.QtGui import QColor, QPainter, QImage, QLinearGradient, QFont, QPen
+from PySide6.QtGui import QColor, QPainter, QImage, QFont, QPen
 from PySide6.QtWidgets import QWidget
 from theme import COLORS
 
@@ -11,7 +11,7 @@ class Preview(QWidget):
         self.mirror = False
         self.rotation = 0
         self.message = "Camera offline"
-        self.detail = "Start streaming in Free Cam on your iPhone to see your camera here."
+        self.detail = "Start streaming in NoSub Cam on your iPhone to see your camera here."
         self.setMinimumSize(300, 300)
 
     def paintEvent(self, event):
@@ -45,25 +45,17 @@ class Preview(QWidget):
 def demo_image():
     image = QImage(1280, 720, QImage.Format_RGB32)
     painter = QPainter(image)
-    gradient = QLinearGradient(0, 0, 1280, 720)
-    gradient.setColorAt(0, QColor("#202728"))
-    gradient.setColorAt(0.55, QColor("#424b4c"))
-    gradient.setColorAt(1, QColor("#727872"))
-    painter.fillRect(image.rect(), gradient)
-    painter.setPen(QColor("#18ffffff"))
-    for x in range(0, 1280, 80):
-        painter.drawLine(x, 0, x, 720)
-    for y in range(0, 720, 80):
-        painter.drawLine(0, y, 1280, y)
-    painter.setBrush(QColor("#12ffffff"))
-    painter.setPen(QColor(COLORS["accent"]))
-    painter.drawEllipse(455, 175, 370, 370)
-    painter.drawEllipse(515, 235, 250, 250)
-    painter.drawEllipse(575, 295, 130, 130)
-    painter.setPen(QColor(COLORS["text"]))
-    painter.setFont(QFont("Segoe UI", 28, QFont.Weight.DemiBold))
-    painter.drawText(QRectF(0, 575, 1280, 50), Qt.AlignCenter, "FREE CAM  /  STUDIO PREVIEW")
-    painter.setFont(QFont("Segoe UI", 15))
-    painter.drawText(QRectF(0, 635, 1280, 40), Qt.AlignCenter, "Demo image · simulated camera settings")
+    painter.fillRect(image.rect(), QColor(COLORS["preview"]))
+    painter.setRenderHint(QPainter.Antialiasing)
+
+    body = QRectF(540, 288, 200, 134)
+    painter.setBrush(Qt.NoBrush)
+    painter.setPen(QPen(QColor(COLORS["muted"]), 5))
+    painter.drawRoundedRect(body, 10, 10)
+    painter.drawEllipse(QRectF(597, 316, 86, 86))
+
+    painter.setBrush(QColor(COLORS["accent"]))
+    painter.setPen(Qt.NoPen)
+    painter.drawEllipse(QRectF(704, 306, 14, 14))
     painter.end()
     return image

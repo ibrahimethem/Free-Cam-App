@@ -50,7 +50,8 @@ final class CameraControlChannel {
 
     private func exchangeControls() {
         guard !pollingControls, let connection,
-              let report = capture.report(session: captureID, revision: appliedRevision, error: controlError) else { return }
+              let report = capture.report(session: captureID, revision: appliedRevision,
+                                          error: controlError) else { return }
         guard let data = try? JSONEncoder().encode(report) else { return }
         var request = connection.request(path: "camera", contentType: "application/json")
         request.httpBody = data

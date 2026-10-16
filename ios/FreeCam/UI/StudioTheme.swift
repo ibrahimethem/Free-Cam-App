@@ -9,6 +9,7 @@ enum StudioTheme {
     static let text = Color(red: 236 / 255.0, green: 238 / 255.0, blue: 234 / 255.0)
     static let muted = Color(red: 181 / 255.0, green: 185 / 255.0, blue: 181 / 255.0)
     static let accent = Color(red: 255 / 255.0, green: 177 / 255.0, blue: 107 / 255.0)
+    static let cornerRadius: CGFloat = 4
 }
 
 private struct StudioSurface: ViewModifier {
@@ -18,8 +19,11 @@ private struct StudioSurface: ViewModifier {
         content
             .padding(field ? 12 : 16)
             .background(field ? StudioTheme.input : StudioTheme.surface,
-                        in: RoundedRectangle(cornerRadius: 4))
-            .overlay(RoundedRectangle(cornerRadius: 4).stroke(StudioTheme.border, lineWidth: 1))
+                        in: RoundedRectangle(cornerRadius: StudioTheme.cornerRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: StudioTheme.cornerRadius)
+                    .stroke(StudioTheme.border, lineWidth: 1)
+            )
     }
 }
 

@@ -5,8 +5,14 @@ ios/FreeCam.xcodeproj/
 ios/Info.plist
 DerivedData/
 .venv/
+.venv-windows/
 build/
 dist/
+fastlane/build/
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/test_output/
+fastlane/screenshots/screenshots.html
 
 # Generated release packages and local previews
 /*.zip

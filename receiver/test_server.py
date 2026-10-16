@@ -30,6 +30,11 @@ class ReceiverTests(unittest.TestCase):
         return self.request("POST", "/frame", body,
                             {"Authorization": f"Bearer {key}", "Content-Type": content_type})
 
+    def upload_ordered(self, body, session, sequence):
+        return self.request("POST", "/frame", body, {
+            "Authorization": "Bearer test-key", "Content-Type": "image/jpeg",
+            "X-NoSub-Frame-Session": session, "X-NoSub-Frame-Sequence": str(sequence)})
+
     def post_json(self, path, data, key="test-key"):
         return self.request("POST", path, json.dumps(data),
                             {"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
@@ -37,11 +42,14 @@ class ReceiverTests(unittest.TestCase):
     def camera_report(self, session="camera-one", revision=0, error=""):
         caps = {"manualExposure": True, "autoExposure": True,
                 "manualFocus": True, "autoFocus": True,
-                "manualWhiteBalance": True, "autoWhiteBalance": True, "canZoom": True}
+                "manualWhiteBalance": True, "autoWhiteBalance": True, "canZoom": True,
+                "cameraPositions": ["rear", "front"],
+                "orientations": ["landscape", "portrait"]}
         for name, bounds in {"iso": (25, 1600), "shutterMs": (0.1, 1000), "focus": (0, 1),
                              "temperature": (2000, 10000), "tint": (-150, 150), "zoom": (1, 6)}.items():
             caps[name] = {"min": bounds[0], "max": bounds[1]}
-        current = {"exposureAuto": True, "iso": 100, "shutterMs": 16.67,
+        current = {"cameraPosition": "rear", "orientation": "landscape",
+                   "exposureAuto": True, "iso": 100, "shutterMs": 16.67,
                    "focusAuto": True, "focus": 0.5, "whiteBalanceAuto": True,
                    "temperature": 5000, "tint": 0, "zoom": 1}
         return {"session": session, "capabilities": caps, "current": current,
@@ -76,6 +84,31 @@ class ReceiverTests(unittest.TestCase):
         _, body = self.request("GET", "/status?key=test-key")
         self.assertFalse(json.loads(body)["connected"])
 
+    def test_frame_upload_connection_stays_alive(self):
+        connection = http.client.HTTPConnection("127.0.0.1", self.port, timeout=3)
+        headers = {"Authorization": "Bearer test-key", "Content-Type": "image/jpeg"}
+        for frame in (b"\xff\xd8one\xff\xd9", b"\xff\xd8two\xff\xd9"):
+            connection.request("POST", "/frame", body=frame, headers=headers)
+            response = connection.getresponse()
+            self.assertEqual(response.status, 204)
+            self.assertEqual(response.version, 11)
+            response.read()
+        connection.close()
+        self.assertEqual(self.server.sequence, 2)
+
+    def test_late_parallel_frames_do_not_replace_newer_video(self):
+        newest = b"\xff\xd8newest\xff\xd9"
+        self.assertEqual(self.upload_ordered(newest, "stream-a", 2)[0], 204)
+        self.assertEqual(self.upload_ordered(b"\xff\xd8old\xff\xd9", "stream-a", 1)[0], 204)
+        self.assertEqual(self.server.frame, newest)
+        self.assertEqual(self.server.sequence, 1)
+
+        replacement = b"\xff\xd8replacement\xff\xd9"
+        self.assertEqual(self.upload_ordered(replacement, "stream-b", 1)[0], 204)
+        self.assertEqual(self.upload_ordered(b"\xff\xd8retired\xff\xd9", "stream-a", 3)[0], 204)
+        self.assertEqual(self.server.frame, replacement)
+        self.assertEqual(self.server.sequence, 2)
+
     def test_stream_delivers_multipart_frame(self):
         # JPEG markers exercise transport framing; no image decoder is involved.
         frame = b"\xff\xd8payload\xff\xd9"
@@ -96,7 +129,7 @@ class ReceiverTests(unittest.TestCase):
     def test_preview_is_available_without_key(self):
         code, body = self.request("GET", "/")
         self.assertEqual(code, 200)
-        self.assertIn(b"Free Cam", body)
+        self.assertIn(b"NoSub Cam", body)
 
     def test_camera_control_roundtrip_and_acknowledgement(self):
         code, body = self.post_json("/camera", self.camera_report())
@@ -177,6 +210,8 @@ class ReceiverTests(unittest.TestCase):
             {"id": "1280x720", "label": "720p", "width": 1280, "height": 720},
             {"id": "1920x1080", "label": "1080p", "width": 1920, "height": 1080}]
         report["current"]["resolution"] = "1280x720"
+        report["capabilities"]["frameRates"] = [24, 30, 60]
+        report["current"]["frameRate"] = 30
         return report
 
     def test_resolution_change_discards_old_sensor_commands(self):
@@ -198,6 +233,15 @@ class ReceiverTests(unittest.TestCase):
             self.assertEqual(self.command(settings)[0], 400)
         self.assertEqual(self.server.revision, 0)
 
+    def test_frame_rate_must_be_supported_at_current_resolution(self):
+        report = self.resolution_report()
+        self.post_json("/camera", report)
+        self.assertEqual(self.command({"frameRate": 60})[0], 200)
+        self.assertEqual(self.server.settings, {"frameRate": 60})
+        for settings in ({"frameRate": 120}, {"frameRate": True},
+                         {"frameRate": 30, "zoom": 2}):
+            self.assertEqual(self.command(settings, revision=1)[0], 400)
+
     def test_legacy_phone_cannot_receive_resolution_commands(self):
         self.post_json("/camera", self.camera_report())
         self.assertEqual(self.command({"resolution": "1280x720"})[0], 400)
@@ -210,6 +254,32 @@ class ReceiverTests(unittest.TestCase):
         report = self.resolution_report()
         report["capabilities"]["resolutions"][0]["width"] = False
         self.assertEqual(self.post_json("/camera", report)[0], 400)
+
+        report = self.resolution_report()
+        report["capabilities"]["frameRates"] = [24, True, 60]
+        self.assertEqual(self.post_json("/camera", report)[0], 400)
+        report = self.resolution_report()
+        report["current"]["frameRate"] = 120
+        self.assertEqual(self.post_json("/camera", report)[0], 400)
+
+    def test_camera_position_and_orientation_commands(self):
+        self.post_json("/camera", self.resolution_report())
+        self.assertEqual(self.command({"cameraPosition": "front"})[0], 200)
+        self.assertEqual(self.server.settings, {"cameraPosition": "front"})
+        report = self.resolution_report()
+        report["current"]["cameraPosition"] = "front"
+        report["appliedRevision"] = 1
+        self.post_json("/camera", report)
+        self.assertEqual(self.command({"orientation": "landscape"}, revision=1)[0], 200)
+        self.assertEqual(self.server.settings,
+                         {"cameraPosition": "front", "orientation": "landscape"})
+
+    def test_invalid_camera_position_and_orientation_are_rejected(self):
+        self.post_json("/camera", self.resolution_report())
+        for settings in ({"cameraPosition": "telephoto"}, {"orientation": "upside-down"},
+                         {"cameraPosition": "front", "zoom": 2}, {"orientation": True}):
+            with self.subTest(settings=settings):
+                self.assertEqual(self.command(settings)[0], 400)
 
 
 if __name__ == "__main__":

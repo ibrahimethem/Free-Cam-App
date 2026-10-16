@@ -75,7 +75,7 @@ async function poll(generation) {
     const state = await response.json();
     if (generation !== connectionGeneration) return;
     latest = state;
-    status.textContent = state.connected ? 'Live · ' + state.frames + ' frames received' : 'Waiting for your iPhone. Open Free Cam and start streaming.';
+    status.textContent = state.connected ? 'Live · ' + state.frames + ' frames received' : 'Waiting for your iPhone. Open NoSub Cam and start streaming.';
     renderCamera();
   } catch (error) {
     if (generation !== connectionGeneration) return;

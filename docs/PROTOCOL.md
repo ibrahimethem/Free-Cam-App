@@ -19,6 +19,9 @@ The desktop receiver listens on TCP 8765 by default.
 Authorization accepts `Authorization: Bearer <key>`; stream URLs may include
 the key as a query parameter. Restarting the receiver rotates the pairing key.
 Wi-Fi uses unencrypted local HTTP; do not expose it to the internet.
+The iPhone may keep up to two frame uploads in flight to overlap JPEG encoding
+and network latency. `X-NoSub-Frame-Session` and `X-NoSub-Frame-Sequence` let the
+receiver discard a late older response without allowing an unbounded frame queue.
 
 ## Camera messages
 
@@ -27,14 +30,20 @@ A report contains `session`, `capabilities`, `current`, `appliedRevision` and
 include the current session and revision to reject stale edits.
 
 Settings include `iso`, `shutterMs`, `focus`, `temperature`, `tint`, `zoom`,
-`exposureAuto`, `focusAuto`, `whiteBalanceAuto` and `resolution`. Capabilities
-advertise support flags, numeric ranges and optional supported resolutions.
+`exposureAuto`, `focusAuto`, `whiteBalanceAuto`, `cameraPosition`, `orientation`
+`resolution` and `frameRate`. Capabilities advertise support flags, numeric ranges and
+optional supported camera positions, orientations, resolutions and frame rates.
 Use the camera's advertised limits rather than assumptions about a device model.
 
 Manual exposure sends ISO and shutter together with `exposureAuto: false`.
 Manual focus and white balance similarly include their manual-mode flag and
-required values. Send resolution changes separately; they clear previously
-queued sensor commands. New capture sessions clear old settings.
+required values. Send camera-position, resolution and frame-rate changes separately; they
+clear previously queued sensor commands because the active camera format and its
+limits may change. A resolution change resets capture to 30 FPS; the following
+report advertises the 24/30/60 FPS choices actually supported at that resolution.
+`landscape` is the native unrotated sensor output. `portrait`
+physically rotates captured pixel buffers before transmission and therefore costs
+additional per-frame work. New capture sessions clear old settings.
 
 Reports/commands exchange approximately every 500 ms. An applied revision
 acknowledges processing; current sensor readings describe the resulting state.
@@ -46,8 +55,9 @@ USB carries the same report/command models using a version-1 framed protocol.
 See [the USB specification](../desktop/USB.md) for handshake, packet types,
 limits and frame acknowledgements. Source changes rotate keys and clear state;
 HTTP phone uploads are rejected while USB or native input is selected.
-macOS Continuity uses Qt multimedia and has no Free Cam sensor command channel.
+macOS Continuity uses Qt multimedia and has no NoSub Cam sensor command channel.
 
-Preserve compatibility with reports without optional resolution fields. Add
-appropriate Python and Swift checks when changing fields, units or semantics.
+Preserve compatibility with reports without optional camera-position, orientation,
+resolution or frame-rate fields. Add appropriate Python and Swift checks when changing fields,
+units or semantics.
 Breaking USB framing changes require an explicit protocol-version decision.

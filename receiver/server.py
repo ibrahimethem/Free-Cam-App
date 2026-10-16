@@ -1,4 +1,4 @@
-"""Free Cam: local JPEG relay. Python 3.10+, no external dependencies."""
+"""NoSub Cam: local JPEG relay. Python 3.10+, no external dependencies."""
 import argparse
 import copy
 import hmac
@@ -26,6 +26,9 @@ class Relay(ThreadingHTTPServer):
         self.token = token
         self.changed = threading.Condition()
         self.frame = None
+        self.frame_session = None
+        self.frame_sequence = -1
+        self.retired_frame_sessions = []
         self.sequence = 0
         self.last_frame = 0.0
         self.camera = None
@@ -74,17 +77,23 @@ class Relay(ThreadingHTTPServer):
             if type(data.get("revision")) is not int or data["revision"] != self.revision:
                 raise ControlConflict("Settings changed. Refresh and try again.")
             patch = validate_command(data.get("settings"), self.camera["capabilities"])
-            if ("resolution" in self.settings and self.revision > self.camera["appliedRevision"]
-                    and self.settings["resolution"] != self.camera["current"].get("resolution")
-                    and "resolution" not in patch):
-                raise ControlConflict("Wait for the resolution change to finish")
-            # Format changes reset sensor modes/ranges. Do not replay previous manual settings.
-            self.settings = patch.copy() if "resolution" in patch else {**self.settings, **patch}
+            reset_fields = ("resolution", "cameraPosition", "frameRate")
+            pending_reset = next((name for name in reset_fields
+                                  if name in self.settings and self.revision > self.camera["appliedRevision"]
+                                  and self.settings[name] != self.camera["current"].get(name)), None)
+            if pending_reset and pending_reset not in patch:
+                raise ControlConflict(f"Wait for the {pending_reset} change to finish")
+            # Camera/format changes reset sensor modes and ranges. Do not replay old manual settings.
+            self.settings = patch.copy() if any(name in patch for name in reset_fields) else {**self.settings, **patch}
             self.revision += 1
             return {"revision": self.revision}
 
 
 class Handler(BaseHTTPRequestHandler):
+    # Keep URLSession's frame connection alive. HTTP/1.0 closed the socket after
+    # every JPEG and made round-trip latency the effective frame-rate limiter.
+    protocol_version = "HTTP/1.1"
+
     # Keep pairing keys out of HTTP access logs.
     def log_message(self, *_):
         pass
@@ -98,6 +107,12 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def reject_post(self, status, body=b""):
+        # The request body may be unread. Close instead of treating its remaining
+        # bytes as the next request on this HTTP/1.1 connection.
+        self.close_connection = True
+        return self.reply(status, body)
+
     def authorized(self):
         supplied = self.headers.get("Authorization", "").removeprefix("Bearer ")
         if not supplied:
@@ -108,28 +123,51 @@ class Handler(BaseHTTPRequestHandler):
         self.connection.settimeout(5)
         path = urlsplit(self.path).path
         if path not in ("/frame", "/camera", "/controls"):
-            return self.reply(404)
+            return self.reject_post(404)
         if not self.authorized():
-            return self.reply(401, b"Invalid pairing key")
+            return self.reject_post(401, b"Invalid pairing key")
         if path in ("/frame", "/camera") and not self.server.accept_phone:
-            return self.reply(409, b"Desktop camera source selected")
+            return self.reject_post(409, b"Desktop camera source selected")
         if path != "/frame":
             return self.control_request(path)
         try:
             size = int(self.headers.get("Content-Length", "0"))
         except ValueError:
-            return self.reply(400)
+            return self.reject_post(400)
         if not 4 <= size <= 8_000_000:
-            return self.reply(413)
+            return self.reject_post(413)
         if self.headers.get("Content-Type") != "image/jpeg":
-            return self.reply(415)
+            return self.reject_post(415)
         try:
             frame = self.rfile.read(size)
         except (OSError, TimeoutError):
             return
         if len(frame) != size or not frame.startswith(b"\xff\xd8") or not frame.endswith(b"\xff\xd9"):
             return self.reply(400, b"Expected a complete JPEG")
+        frame_session = self.headers.get("X-NoSub-Frame-Session")
+        frame_sequence = self.headers.get("X-NoSub-Frame-Sequence")
+        if (frame_session is None) != (frame_sequence is None):
+            return self.reply(400, b"Incomplete frame ordering headers")
+        if frame_session is not None:
+            try:
+                frame_sequence = int(frame_sequence)
+            except ValueError:
+                return self.reply(400, b"Invalid frame sequence")
+            if not 1 <= len(frame_session) <= 64 or frame_sequence < 1:
+                return self.reply(400, b"Invalid frame ordering headers")
         with self.server.changed:
+            if frame_session is not None:
+                if frame_session != self.server.frame_session:
+                    if frame_session in self.server.retired_frame_sessions:
+                        return self.reply(204)
+                    if self.server.frame_session is not None:
+                        self.server.retired_frame_sessions.append(self.server.frame_session)
+                        self.server.retired_frame_sessions = self.server.retired_frame_sessions[-8:]
+                    self.server.frame_session = frame_session
+                    self.server.frame_sequence = -1
+                if frame_sequence <= self.server.frame_sequence:
+                    return self.reply(204)
+                self.server.frame_sequence = frame_sequence
             self.server.frame = frame
             self.server.last_frame = time.monotonic()
             self.server.sequence += 1
@@ -140,9 +178,9 @@ class Handler(BaseHTTPRequestHandler):
         try:
             size = int(self.headers.get("Content-Length", "0"))
             if not 1 <= size <= 65536:
-                return self.reply(413)
+                return self.reject_post(413)
             if self.headers.get("Content-Type") != "application/json":
-                return self.reply(415)
+                return self.reject_post(415)
             raw = self.rfile.read(size)
             if len(raw) != size:
                 return self.reply(400)

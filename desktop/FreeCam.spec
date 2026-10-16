@@ -23,7 +23,8 @@ coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='FreeCam')
 if sys.platform == 'darwin':
     app = BUNDLE(coll, name='FreeCam.app', icon=None,
                  bundle_identifier='com.freecam.desktop',
-                 info_plist={'NSCameraUsageDescription': 'Free Cam previews your selected camera, including your iPhone through Continuity Camera.',
+                 info_plist={'CFBundleDisplayName': 'NoSub Studio',
+                             'NSCameraUsageDescription': 'NoSub Studio previews the camera you select, including your iPhone through Continuity Camera.',
                              'NSCameraUseContinuityCameraDeviceType': True,
                              'NSLocalNetworkUsageDescription':
-                             'Free Cam receives camera video from your iPhone on your local Wi-Fi network.'})
+                             'NoSub Studio receives video directly from NoSub Cam on your local network.'})

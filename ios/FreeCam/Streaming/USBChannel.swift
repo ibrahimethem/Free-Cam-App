@@ -11,15 +11,17 @@ final class USBChannel {
     private var peer: NWConnection?
     private var timer: DispatchSourceTimer?
     private var authenticated = false
-    private var framePending = false
+    private var framesPending = 0
     private var reportPending = false
     private var frameSequence = 0
+    private var lastAcknowledgedFrame = 0
     private var captureID = ""
     private var revision = 0
     private var commandError = ""
     private var key = ""
 
-    init(queue: DispatchQueue, capture: CameraCapture, status: @escaping (String, Bool) -> Void) {
+    init(queue: DispatchQueue, capture: CameraCapture,
+         status: @escaping (String, Bool) -> Void) {
         self.queue = queue
         self.capture = capture
         self.status = status
@@ -42,7 +44,7 @@ final class USBChannel {
             }
         }
         listener.start(queue: queue)
-        status("USB ready. Connect from Free Cam on your computer.", true)
+        status("USB ready. Connect from NoSub Studio on your computer.", true)
     }
 
     func stop() {
@@ -57,7 +59,9 @@ final class USBChannel {
         timer?.cancel()
         timer = nil
         authenticated = false
-        framePending = false
+        framesPending = 0
+        frameSequence = 0
+        lastAcknowledgedFrame = 0
         reportPending = false
     }
 
@@ -119,8 +123,9 @@ final class USBChannel {
             self.timer = timer
             timer.resume()
             status("Live - Direct USB", true)
-        } else if packet.first == 6 && body.isEmpty {
-            framePending = false
+        } else if packet.first == 6 && body.isEmpty, framesPending > 0 {
+            framesPending -= 1
+            lastAcknowledgedFrame += 1
         } else if packet.first == 4, let command = try? JSONDecoder().decode(CameraCommand.self, from: body) {
             reportPending = false
             if command.revision > revision {
@@ -131,17 +136,17 @@ final class USBChannel {
         } else { lost(connection) }
     }
 
-    var canSendFrame: Bool { authenticated && !framePending }
+    var canSendFrame: Bool { authenticated && framesPending < 2 }
 
     func sendFrame(_ data: Data) {
         guard canSendFrame, let peer, data.count <= 8_000_000 else { return }
-        framePending = true
+        framesPending += 1
         frameSequence += 1
         let sentSequence = frameSequence
         send(kind: 2, data: data, connection: peer)
         queue.asyncAfter(deadline: .now() + 5) { [weak self, weak peer] in
-            guard let self, let peer, self.peer === peer, self.framePending,
-                  self.frameSequence == sentSequence else { return }
+            guard let self, let peer, self.peer === peer,
+                  self.lastAcknowledgedFrame < sentSequence else { return }
             // A stalled desktop must not leave the capture pipeline permanently blocked.
             self.lost(peer)
         }
@@ -149,7 +154,8 @@ final class USBChannel {
 
     private func report() {
         guard authenticated, !reportPending, let peer,
-              let report = capture.report(session: captureID, revision: revision, error: commandError),
+              let report = capture.report(session: captureID, revision: revision,
+                                          error: commandError),
               let data = try? JSONEncoder().encode(report) else { return }
         reportPending = true
         send(kind: 3, data: data, connection: peer)

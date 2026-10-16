@@ -14,6 +14,10 @@ MODES = {
     "focusAuto": ("autoFocus", "manualFocus"),
     "whiteBalanceAuto": ("autoWhiteBalance", "manualWhiteBalance"),
 }
+CHOICES = {
+    "cameraPosition": "cameraPositions",
+    "orientation": "orientations",
+}
 
 
 def number(value):
@@ -61,6 +65,22 @@ def validate_snapshot(data):
                 raise ValueError("Invalid resolution dimensions")
         if current.get("resolution") not in ids:
             raise ValueError("Current resolution is not supported")
+    if "frameRates" in caps:
+        frame_rates = caps["frameRates"]
+        if (not isinstance(frame_rates, list) or not 1 <= len(frame_rates) <= 16
+                or any(type(item) is not int or not 1 <= item <= 240 for item in frame_rates)
+                or len(set(frame_rates)) != len(frame_rates)
+                or current.get("frameRate") not in frame_rates):
+            raise ValueError("Invalid frame rates")
+    for current_name, capability_name in CHOICES.items():
+        if capability_name not in caps:
+            continue
+        options = caps[capability_name]
+        if (not isinstance(options, list) or not 1 <= len(options) <= 8
+                or any(not isinstance(item, str) or not 1 <= len(item) <= 30 for item in options)
+                or len(set(options)) != len(options)
+                or current.get(current_name) not in options):
+            raise ValueError(f"Invalid {current_name} options")
     return data
 
 
@@ -73,6 +93,17 @@ def validate_command(patch, caps):
                 raise ValueError("Resolution is unsupported by this camera")
             if len(patch) != 1:
                 raise ValueError("Apply resolution separately from sensor settings")
+        elif name == "frameRate":
+            if type(value) is not int or value not in caps.get("frameRates", []):
+                raise ValueError("Frame rate is unsupported at this resolution")
+            if len(patch) != 1:
+                raise ValueError("Apply frame rate separately from other settings")
+        elif name in CHOICES:
+            options = caps.get(CHOICES[name], [])
+            if not isinstance(value, str) or value not in options:
+                raise ValueError(f"{name} is unsupported by this camera")
+            if len(patch) != 1:
+                raise ValueError(f"Apply {name} separately from other settings")
         elif name in MODES:
             if type(value) is not bool:
                 raise ValueError(f"{name} must be a boolean")

@@ -51,8 +51,9 @@ class USBTests(unittest.TestCase):
         thread = threading.Thread(target=daemon)
         thread.start()
         mux = USBMux()
-        with patch.object(mux, "open", return_value=left):
-            self.assertEqual(mux.devices(), [(1, "wired")])
+        with patch.object(mux, "open", return_value=left), patch.object(
+                mux, "device_info", return_value={"DeviceName": "Studio iPhone", "ProductType": "iPhone14,4"}):
+            self.assertEqual(mux.devices(), [(1, "Studio iPhone · iPhone 13 mini")])
         thread.join()
         self.assertEqual(seen[0]["MessageType"], "ListDevices")
 

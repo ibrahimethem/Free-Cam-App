@@ -9,7 +9,12 @@ import threading
 from PySide6.QtCore import QObject, Signal
 
 PORT = 8766
+LOCKDOWN_PORT = 62078
 MAX_PACKET = 8_000_001
+
+APPLE_MODEL_NAMES = {
+    "iPhone14,4": "iPhone 13 mini",
+}
 
 
 class USBServiceUnavailable(ConnectionError):
@@ -72,21 +77,50 @@ class USBMux:
             result = self.request(stream, {"MessageType": "ListDevices"})
         if "DeviceList" not in result:
             raise ConnectionError("Apple USB service could not list devices")
-        return [(item["DeviceID"], item["Properties"].get("SerialNumber", "iPhone"))
-                for item in result["DeviceList"] if item.get("Properties", {}).get("ConnectionType") == "USB"]
+        devices = []
+        for item in result["DeviceList"]:
+            properties = item.get("Properties", {})
+            if properties.get("ConnectionType") != "USB":
+                continue
+            device_id = item["DeviceID"]
+            serial = properties.get("SerialNumber", "")
+            try:
+                info = self.device_info(device_id)
+                name = info.get("DeviceName") or info.get("DeviceClass") or "iPhone / iPad"
+                product = info.get("ProductType", "")
+                model = APPLE_MODEL_NAMES.get(product, product)
+                display = f"{name} · {model}" if model and model not in name else name
+            except (OSError, ValueError, KeyError, plistlib.InvalidFileException):
+                suffix = serial[-6:] if serial else "USB"
+                display = f"iPhone / iPad · {suffix}"
+            devices.append((device_id, display))
+        return devices
 
-    def connect(self, device_id):
+    def connect(self, device_id, port=PORT):
         stream = self.open()
         try:
             reply = self.request(stream, {"MessageType": "Connect", "DeviceID": device_id,
-                                           "PortNumber": socket.htons(PORT)})
+                                           "PortNumber": socket.htons(port)})
             if reply.get("Number") != 0:
-                raise ConnectionError("Cannot open Free Cam on iPhone. Unlock, trust this computer, "
+                raise ConnectionError("Cannot open NoSub Cam on iPhone. Unlock, trust this computer, "
                                       "select Direct USB in the iPhone app and start streaming.")
             return stream
         except Exception:
             stream.close()
             raise
+
+    def device_info(self, device_id):
+        with self.connect(device_id, LOCKDOWN_PORT) as stream:
+            body = plistlib.dumps({"Label": "NoSub Studio", "Request": "GetValue"})
+            stream.sendall(struct.pack("!I", len(body)) + body)
+            length, = struct.unpack("!I", read_exact(stream, 4))
+            if not 1 <= length <= 1_000_000:
+                raise ValueError("Invalid iPhone identity response")
+            response = plistlib.loads(read_exact(stream, length))
+        value = response.get("Value")
+        if not isinstance(value, dict):
+            raise ValueError("iPhone identity is unavailable")
+        return value
 
 
 class USBBridge(QObject):

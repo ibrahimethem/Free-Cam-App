@@ -1,4 +1,4 @@
-# Free Cam
+# NoSub Cam
 
 A subscription-free prototype for using an iPhone camera on Windows and macOS.
 The native iOS app sends JPEG frames over Wi-Fi or direct USB to a standalone desktop receiver; OBS exposes
@@ -20,20 +20,22 @@ and previews are excluded from Git. Executables belong in GitHub Releases.
 
 ## Current scope
 
-- iOS 26+ camera app with rear/front selection, preview, start/stop, and foreground streaming.
-- Native Qt desktop interface for Windows/macOS: connection settings on the left,
-  a large live preview in the center, and sensor controls on the right.
+- iOS 26+ camera app with pairing, start/stop, and foreground streaming. Video is
+  intentionally previewed only on the desktop to reserve phone resources for capture.
+- Native Qt desktop interface for Windows/macOS: camera controls on the left,
+  a large live preview in the center, and a dedicated connection panel on the right.
 - Embedded receiver with automatic startup and a random pairing key per launch.
   No browser, web view, or separate server process is needed for the desktop app.
-- Desktop camera settings: manual ISO/shutter, focus, white balance temperature/tint,
-  zoom, and automatic modes, with live iPhone readings and capability-based ranges.
-- Device-supported 480p, 720p, 1080p, and 4K selection from the desktop. Capture
-  starts at 720p, portrait output, targeting up to 24 FPS; actual FPS depends on
-  resolution, Wi-Fi, and JPEG upload latency.
+- Desktop camera settings: rear/front camera, portrait/landscape output, manual
+  ISO/shutter, focus, white balance temperature/tint, zoom, and automatic modes,
+  with live iPhone readings and capability-based ranges.
+- Device-supported 480p, 720p, 1080p, and 4K selection from the desktop, plus
+  capability-based 24, 30, and 60 FPS choices. Capture starts at 720p30 with native
+  landscape output; delivered FPS depends on resolution, transport, and JPEG encoding.
 - OBS is required for webcam output in this prototype. This is not a standalone virtual camera driver.
 - Direct USB transport without Personal Hotspot, using the host Apple USB service; physical device validation is pending.
 - Optional macOS camera input for Continuity Camera, with camera selection and permission handling; Mac validation is pending.
-- No audio, automatic Wi-Fi discovery, installer, background capture, or landscape rotation yet.
+- No audio, automatic Wi-Fi discovery, installer, or background capture yet.
 
 ## Run the standalone desktop app
 
@@ -43,7 +45,7 @@ Python installation or browser is needed to run it. This is a portable app,
 not an installer.
 
 The app starts its receiver automatically. Select your computer's Wi-Fi address
-in the left sidebar, then enter it and the displayed pairing key in the iPhone app.
+in the right connection panel, then enter it and the displayed pairing key in the iPhone app.
 Permit inbound TCP port 8765 on your private network if the firewall prompts.
 Do not run the older command-line receiver at the same time on that port.
 If the port is already in use, close that receiver or run with `--port 8766`.
@@ -125,12 +127,13 @@ and on-device visual verification on a Mac.
 ## Direct USB (no hotspot)
 
 1. Use a USB data cable, unlock your iPhone and trust the computer if prompted.
-2. In the desktop connection selector, choose **Free Cam - Direct USB**.
+2. In the desktop connection selector, choose **NoSub Cam — Direct USB**.
 3. In the updated iPhone app, enable **Direct USB connection**, enter the desktop
    pairing key, and tap **Start streaming**. The receiver address is unused in this mode.
 4. On desktop, click **Refresh devices**, select the connected device and click
-   **Connect camera**. ISO, shutter, focus, white balance, zoom and resolutions use
-   the same controls and acknowledgements as Wi-Fi.
+   **Connect camera**. Camera position, output orientation, ISO, shutter, focus,
+   white balance, zoom and resolution use the same controls and acknowledgements
+   as Wi-Fi.
 
 No hotspot, internet access, IP entry or iTunes process is required. macOS supplies
 its USB multiplexing service. Windows must have a working Apple Mobile Device USB
@@ -139,7 +142,7 @@ detects an unavailable service and shows a setup panel with the official Apple D
 Store link, retry and Wi-Fi fallback. The panel explains what to do if Apple Devices
 is already installed; an unavailable service does not prove the app is missing.
 The panel disappears when the service becomes available, including when no phone
-is connected. Free Cam does not install
+is connected. NoSub Cam does not install
 or redistribute drivers. Plugging in a cable alone cannot replace missing drivers.
 
 USB communicates through the local Apple USB service to a loopback-only TCP listener
@@ -157,11 +160,11 @@ The Mac build installs the optional PySide6-Addons multimedia module.
 
 Enable Continuity Camera on your iPhone, use the same Apple Account with two-factor
 authentication, and satisfy Apple's device requirements. Apple manages USB/wireless
-selection; Free Cam does not force a route. Close Free Cam's iPhone capture session
+selection; NoSub Cam does not force a route. Close NoSub Cam's iPhone capture session
 before using Continuity Camera. See Apple's [Continuity Camera guide](https://support.apple.com/en-gb/102546).
 
-This mode feeds preview and OBS output, but Free Cam's sensor controls and resolution
-selector are disabled. Use Free Cam Wi-Fi or Direct USB for manual ISO/shutter and
+This mode feeds preview and OBS output, but NoSub Cam's sensor controls and resolution
+selector are disabled. Use NoSub Cam Wi-Fi or Direct USB for manual ISO/shutter and
 other sensor settings. Windows shows Continuity Camera as unavailable.
 
 Changing the desktop source restarts the receiver, revokes the old pairing key and
@@ -172,34 +175,53 @@ clears previous frames and settings. Update the iPhone key and OBS stream URL af
 After starting streaming on your iPhone, the native desktop app's right-hand
 **Camera adjustments** panel enables controls supported by the selected camera.
 
-Choose a resolution in the left sidebar and click **Apply resolution**. Only
+Choose the rear or front camera and the portrait or landscape output orientation
+in the left sidebar. Landscape uses the camera sensor's native 16:9 orientation
+without rotating every frame; hold the iPhone horizontally for the intended framing.
+Portrait physically rotates output buffers and costs additional processing. Changing cameras
+restores the default 720p preset and supported automatic sensor modes because each
+camera may expose different formats and limits.
+
+Choose a resolution in the left sidebar to apply it immediately. Only
 standard capture presets supported by the selected iPhone camera are offered:
 480p (640×480), 720p (1280×720), 1080p (1920×1080), and 4K (3840×2160).
 These dimensions name the capture preset; portrait video swaps width and height.
 Front and rear cameras may expose different options. The selector and sensor
 controls pause while a resolution change awaits acknowledgement.
 
+Choose a frame rate after selecting the resolution; it applies immediately. The desktop only offers 24,
+30, or 60 FPS when the active iPhone camera has a matching hardware format. A
+resolution or camera change returns capture to 30 FPS and refreshes these choices.
+Selecting 60 FPS configures the sensor for 60 FPS, but delivered FPS can still be
+lower when JPEG encoding, USB/Wi-Fi transport, or the computer cannot keep up.
+
 Resolution changes restore supported automatic exposure, focus, and white balance
 modes, discard previously queued sensor commands, and refresh the displayed ISO,
 shutter, and zoom limits. Reapply manual settings afterward. Higher resolutions
 use more bandwidth and may lower the delivered FPS. The prototype accepts JPEGs
 up to 8 MB; if a high-resolution frame exceeds that limit, select a lower resolution.
-Rebuild the updated iPhone app to enable this feature. Older builds still stream
-and accept sensor controls, but the desktop resolution selector shows an update hint.
+Rebuild the updated iPhone app to enable these features. Older builds still stream
+and accept sensor controls, but the desktop resolution and frame-rate selectors show an update hint.
 
 - **Exposure:** turn off Automatic, enter ISO and shutter duration in milliseconds,
-  then click Apply exposure. For example, 8.33 ms is approximately 1/120 second.
+  and changes apply automatically. For example, 8.33 ms is approximately 1/120 second.
   ISO and shutter must be locked together; the phone reports its active format's ranges.
 - **Focus:** turn off Automatic and adjust lens position from 0 (nearest) to 1
-  (furthest), then Apply focus. The value is not a calibrated distance in meters.
+  (furthest). Changes apply automatically. The value is not a calibrated distance in meters.
 - **White balance:** turn off Automatic and enter temperature and tint,
-  then Apply white balance. The 2000–10000 K and -150–150 tint ranges are UI limits.
+  which apply automatically. The 2000–10000 K and -150–150 tint ranges are UI limits.
   The iPhone converts these to RGB gains and bounds them to hardware limits;
   the live readout may therefore differ from your requested values.
-- **Zoom:** set the zoom factor and Apply zoom. This version uses the selected
+- **Zoom:** set the zoom factor to apply it automatically. This version uses the selected
   wide-angle camera's zoom, including digital zoom; it does not switch among physical lenses.
 - To restore an automatic mode, check its Automatic box and click that group's Apply button.
   The left sidebar's Restore automatic settings button restores all supported auto modes.
+
+Detailed ISO/shutter, focus, white-balance, and zoom choices are cached locally by
+both NoSub Studio and NoSub Cam after a valid change. They are restored when capture
+starts again; incompatible cached values are discarded safely. Use **Save preset**
+to name the current detailed settings. Selecting a saved preset applies it immediately;
+presets remain on the computer and can be deleted from the same section.
 
 The sliders and numeric fields stay in sync. Exposure and zoom sliders use a
 logarithmic scale for easier adjustment across a large range. Mirror and rotation
@@ -222,9 +244,11 @@ Pairing keys protect both the video stream and the control endpoints.
 
 1. Install OBS Studio from https://obsproject.com on the receiving computer.
 2. In OBS, add a **Media Source** and uncheck **Local File**.
-3. Click **Copy OBS stream URL** in Free Cam and paste it into **Input**.
+3. Click **Copy OBS stream URL** in NoSub Studio and paste it into **Input**.
    If needed, set **Input Format** to `mpjpeg` and disable buffering.
-4. Fit/rotate the portrait source in the OBS scene as desired.
+4. Fit the source in the OBS scene. Native landscape is the recommended, fastest mode;
+   choose portrait in NoSub Studio only when a vertical output is required.
+   An additional OBS rotation is optional.
 5. Click **Start Virtual Camera**, then select **OBS Virtual Camera** in your calling app.
 
 Official virtual camera guide: https://obsproject.com/kb/virtual-camera-guide.

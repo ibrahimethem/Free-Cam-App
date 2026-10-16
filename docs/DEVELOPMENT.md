@@ -89,10 +89,10 @@ use a feature branch and merge through a pull request.
 3. Use the same private network; enter the Windows address and current pairing key.
 4. Confirm live video, then ISO at fixed shutter, shutter duration, focus, white
    balance, zoom and restoration of auto modes. Compare actual live readings.
-5. Test supported resolutions and stop/restart/reconnect.
+5. Test supported resolutions, advertised 24/30/60 FPS combinations, and stop/restart/reconnect.
 6. Test direct USB to Windows, then Wi-Fi/USB on Mac and Continuity Camera.
 
-Continuity has no Free Cam manual sensor controls. Read the README and
+Continuity has no NoSub Cam manual sensor controls. Read the README and
 `desktop/USB.md` for connection setup. Physical iPhone/USB and Mac validation
 are pending; simulated tests do not establish physical camera behavior.
 

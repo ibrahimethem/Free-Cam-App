@@ -9,7 +9,7 @@ The desktop connects to the existing service at 127.0.0.1:27015 (Windows) or
 /var/run/usbmuxd (macOS). Plist protocol version 1 lists devices and opens iPhone
 port 8766; the connect request's port is in network byte order. The iOS application
 binds only to 127.0.0.1:8766 using Network.framework. Device trust is established
-by the operating system, with an additional Free Cam pairing-key handshake.
+by the operating system, with an additional NoSub Cam pairing-key handshake.
 
 Each application packet is a four-byte big-endian payload length, followed by a
 one-byte type and body. The length includes the type byte. Protocol version is 1.
@@ -23,8 +23,9 @@ one-byte type and body. The length includes the type byte. Protocol version is 1
 | 3 | iPhone to desktop | CameraReport JSON, at most 64 KiB |
 | 4 | Desktop to iPhone | CameraCommand JSON |
 
-Only one frame waits for a desktop acknowledgement. Capture drops frames while
-waiting, instead of building an upload queue. Reports run every 500 ms; their
+At most two frames wait for desktop acknowledgements, allowing capture and USB
+transfer to overlap without building an unbounded queue. Capture drops frames
+while that two-frame window is full. Reports run every 500 ms; their
 response carries pending sensor commands. The sensor validation, revision and
 session semantics are shared with the Wi-Fi receiver. Cancellation closes sockets;
 a new connection creates a new capture session ID. An unpaired connection times
@@ -39,7 +40,7 @@ Run the Python receiver and desktop suites for simulated protocol checks. Tests
 cover fragmented reads, EOF, size bounds, USB-only enumeration, port encoding,
 frame acknowledgements, command delivery and source isolation. Physical USB is
 not yet verified: build the updated iPhone app on a Mac, then test cable removal,
-wrong keys, reconnect, manual sensor settings and all supported resolutions.
+wrong keys, reconnect, manual sensor settings, all supported resolutions and advertised frame rates.
 
 Protocol reference: https://github.com/libimobiledevice/libusbmuxd
 Our Python implementation uses the local wire protocol directly; it does not

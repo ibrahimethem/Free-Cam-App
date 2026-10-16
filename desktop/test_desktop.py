@@ -3,17 +3,20 @@ import copy
 import http.client
 import json
 import os
+import tempfile
 import time
 import unittest
-from unittest.mock import patch
+from urllib.parse import parse_qs, urlsplit
+from unittest.mock import MagicMock, patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QByteArray, QBuffer, QIODevice
+from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QSettings
 from PySide6.QtGui import QImage, QColor
 from PySide6.QtWidgets import QApplication
 
-from app import MainWindow, demo_report
+from app import (MainWindow, PRIVACY_URL, demo_report, external_link, lan_addresses,
+                 pairing_payload, qr_pixmap)
 from theme import STYLE
 from usb_setup import APPLE_DEVICES_URL
 
@@ -24,11 +27,14 @@ APP.setStyleSheet(STYLE)
 
 class DesktopTests(unittest.TestCase):
     def setUp(self):
-        self.window = MainWindow("127.0.0.1", 0)
+        self.settings_directory = tempfile.TemporaryDirectory()
+        self.preferences = QSettings(self.settings_directory.name + "/settings.ini", QSettings.IniFormat)
+        self.window = MainWindow("127.0.0.1", 0, preferences=self.preferences)
         self.report = demo_report()
 
     def tearDown(self):
         self.window.close()
+        self.settings_directory.cleanup()
 
     def post(self, path, data, content_type="application/json"):
         relay = self.window.relay
@@ -40,6 +46,31 @@ class DesktopTests(unittest.TestCase):
         result = response.status, response.read()
         connection.close()
         return result
+
+    def test_external_legal_link_opens_expected_url(self):
+        with patch("app.QDesktopServices.openUrl", return_value=True) as open_url:
+            external_link("Privacy", PRIVACY_URL).click()
+        self.assertEqual(open_url.call_args.args[0].toString(), PRIVACY_URL)
+
+    def test_pairing_qr_payload_and_rendering(self):
+        payload = pairing_payload("wifi", "http://192.168.1.20:8765", "temporary key")
+        parsed = urlsplit(payload)
+        self.assertEqual((parsed.scheme, parsed.netloc), ("nosubcam", "pair"))
+        self.assertEqual(parse_qs(parsed.query), {
+            "mode": ["wifi"], "address": ["http://192.168.1.20:8765"],
+            "key": ["temporary key"]})
+        image = qr_pixmap(payload, 200)
+        self.assertFalse(image.isNull())
+        self.assertEqual((image.width(), image.height()), (200, 200))
+
+    def test_lan_address_uses_active_route_when_hostname_is_loopback(self):
+        route = MagicMock()
+        route.__enter__.return_value = route
+        route.getsockname.return_value = ("192.168.0.18", 49152)
+        with patch("app.socket.gethostbyname_ex", return_value=("mac", [], ["127.0.0.1"])), \
+             patch("app.socket.socket", return_value=route):
+            self.assertEqual(lan_addresses(), ["192.168.0.18"])
+        route.connect.assert_called_once_with(("192.0.2.1", 80))
 
     def connect_camera(self):
         self.assertEqual(self.post("/camera", self.report)[0], 200)
@@ -185,19 +216,96 @@ class DesktopTests(unittest.TestCase):
         self.connect_camera()
         self.assertEqual(self.window.resolution.count(), 4)
         self.window.resolution.setCurrentIndex(self.window.resolution.findData("1920x1080"))
-        self.window.change_resolution()
+        self.window.resolution.activated.emit(self.window.resolution.currentIndex())
         self.assertEqual(self.window.relay.settings, {"resolution": "1920x1080"})
-        self.assertFalse(self.window.apply_resolution.isEnabled())
+        self.assertFalse(self.window.resolution.isEnabled())
         self.assertFalse(self.window.groups["exposure"].isEnabled())
         self.report["current"].update(resolution="1920x1080", exposureAuto=True, iso=100)
         self.report["capabilities"]["iso"] = {"min": 50, "max": 800}
         self.report["appliedRevision"] = self.window.relay.revision
         self.post("/camera", self.report)
         self.window.refresh()
-        self.assertTrue(self.window.apply_resolution.isEnabled())
+        self.assertTrue(self.window.resolution.isEnabled())
         self.assertEqual(self.window.format_id, "1920x1080")
         self.assertEqual(self.window.groups["exposure"].parameters["iso"].spin.maximum(), 800)
         self.assertIn("1080p", self.window.capture_label.text())
+
+    def test_frame_rate_selection_follows_connected_camera(self):
+        self.connect_camera()
+        self.assertEqual(self.window.frame_rate.count(), 3)
+        self.assertEqual(self.window.frame_rate.currentData(), 30)
+        self.window.frame_rate.setCurrentIndex(self.window.frame_rate.findData(60))
+        self.window.frame_rate.activated.emit(self.window.frame_rate.currentIndex())
+        self.assertEqual(self.window.relay.settings, {"frameRate": 60})
+        self.assertFalse(self.window.frame_rate.isEnabled())
+
+        self.report["current"]["frameRate"] = 60
+        self.report["appliedRevision"] = self.window.relay.revision
+        self.post("/camera", self.report)
+        self.window.refresh()
+        self.assertEqual(self.window.frame_rate_id, 60)
+        self.assertIn("60 FPS", self.window.capture_label.text())
+
+        self.report["capabilities"]["frameRates"] = [24, 30]
+        self.report["current"]["frameRate"] = 30
+        self.post("/camera", self.report)
+        self.window.refresh()
+        self.assertEqual(self.window.frame_rate.findData(60), -1)
+
+    def test_camera_position_and_output_orientation_are_desktop_controls(self):
+        self.connect_camera()
+        self.assertEqual(self.window.camera_position.currentData(), "rear")
+        self.assertEqual(self.window.output_orientation.currentData(), "landscape")
+
+        index = self.window.camera_position.findData("front")
+        self.window.camera_position.setCurrentIndex(index)
+        self.window.camera_position.activated.emit(index)
+        self.assertEqual(self.window.relay.settings, {"cameraPosition": "front"})
+        self.report["current"].update(cameraPosition="front", resolution="1280x720")
+        self.report["appliedRevision"] = self.window.relay.revision
+        self.post("/camera", self.report)
+        self.window.refresh()
+        self.assertEqual(self.window.camera_position_id, "front")
+
+        index = self.window.output_orientation.findData("portrait")
+        self.window.output_orientation.setCurrentIndex(index)
+        self.window.output_orientation.activated.emit(index)
+        self.assertEqual(self.window.relay.settings["orientation"], "portrait")
+        self.report["current"]["orientation"] = "portrait"
+        self.report["appliedRevision"] = self.window.relay.revision
+        self.post("/camera", self.report)
+        self.window.refresh()
+        self.assertIn("portrait", self.window.capture_label.text())
+
+    def test_detail_settings_are_cached_and_named_presets_can_be_applied(self):
+        self.connect_camera()
+        exposure = self.window.groups["exposure"]
+        exposure.auto.setChecked(False)
+        exposure.parameters["iso"].spin.setValue(400)
+        exposure.parameters["shutterMs"].spin.setValue(8.33)
+        exposure.submit()
+
+        cached = json.loads(self.preferences.value("lastSensorSettings"))
+        self.assertFalse(cached["exposureAuto"])
+        self.assertEqual(cached["iso"], 400)
+        self.assertTrue(self.window.save_preset_named("Desk shot"))
+        self.assertIn("Desk shot", json.loads(self.preferences.value("sensorPresets")))
+
+        command = self.window.relay.settings.copy()
+        self.report["current"].update(command)
+        self.report["appliedRevision"] = self.window.relay.revision
+        self.post("/camera", self.report)
+        self.window.refresh()
+
+        exposure.parameters["iso"].spin.setValue(200)
+        self.window.preset.setCurrentIndex(self.window.preset.findData("Desk shot"))
+        self.window.apply_selected_preset()
+        self.assertEqual(exposure.parameters["iso"].spin.value(), 400)
+        self.assertEqual(self.window.relay.settings["iso"], 400)
+        self.assertEqual(self.preferences.value("lastPreset"), "Desk shot")
+
+        self.window.delete_selected_preset()
+        self.assertNotIn("Desk shot", json.loads(self.preferences.value("sensorPresets")))
 
     def test_resolutions_follow_connected_device(self):
         self.report["capabilities"]["resolutions"] = self.report["capabilities"]["resolutions"][:2]
@@ -206,14 +314,24 @@ class DesktopTests(unittest.TestCase):
         self.assertEqual(self.window.resolution.findData("3840x2160"), -1)
         self.window.relay.last_camera = time.monotonic() - 5
         self.window.refresh()
-        self.assertFalse(self.window.apply_resolution.isEnabled())
+        self.assertFalse(self.window.resolution.isEnabled())
 
     def test_legacy_phone_shows_update_hint(self):
         del self.report["capabilities"]["resolutions"]
         del self.report["current"]["resolution"]
+        del self.report["capabilities"]["cameraPositions"]
+        del self.report["capabilities"]["orientations"]
+        del self.report["current"]["cameraPosition"]
+        del self.report["current"]["orientation"]
+        del self.report["capabilities"]["frameRates"]
+        del self.report["current"]["frameRate"]
         self.connect_camera()
         self.assertFalse(self.window.resolution.isEnabled())
         self.assertIn("Update", self.window.resolution.currentText())
+        self.assertFalse(self.window.camera_position.isEnabled())
+        self.assertIn("Update", self.window.camera_position.currentText())
+        self.assertFalse(self.window.frame_rate.isEnabled())
+        self.assertIn("Update", self.window.frame_rate.currentText())
 
 
 if __name__ == "__main__":

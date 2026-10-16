@@ -1,4 +1,3 @@
-import AVFoundation
 import Observation
 import UIKit
 
@@ -16,9 +15,7 @@ final class StreamingSession {
             UIApplication.shared.isIdleTimerDisabled = streaming
         }
     }
-    var captureSession: AVCaptureSession { engine.session }
-
-    func start(address: String, key: String, front: Bool, usb: Bool) {
+    func start(address: String, key: String, usb: Bool) {
         do {
             let key = key.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !key.isEmpty else { throw ReceiverConnection.ConnectionError.invalidAddress }
@@ -28,7 +25,7 @@ final class StreamingSession {
             isStreaming = true
             status = "Requesting camera..."
             UIApplication.shared.isIdleTimerDisabled = true
-            engine.start(connection: connection, key: key, front: front)
+            engine.start(connection: connection, key: key)
         } catch { status = error.localizedDescription }
     }
 
@@ -37,5 +34,10 @@ final class StreamingSession {
         status = "Stopped"
         UIApplication.shared.isIdleTimerDisabled = false
         engine.stop()
+    }
+
+    func resumeIfNeeded() {
+        guard isStreaming else { return }
+        engine.resumeCaptureIfNeeded()
     }
 }

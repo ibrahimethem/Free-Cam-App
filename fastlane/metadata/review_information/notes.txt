@@ -1,0 +1,16 @@
+NoSub Cam sends camera video directly to the user's own computer. It has no account, cloud relay, analytics, advertising, tracking, subscription, or in-app purchase.
+
+Testing requires the free NoSub Studio desktop companion. Download it from:
+https://ibrahimethem.github.io/Free-Cam-App/download/
+
+Wi-Fi test:
+1. Open NoSub Studio and select NoSub Cam — Wi-Fi.
+2. Enter the displayed local address and pairing key in the iPhone app.
+3. Keep both devices on the same private Wi-Fi network and tap Start streaming.
+
+Direct USB test:
+1. Connect and trust the iPhone with a USB data cable.
+2. Select Direct USB in both apps and use the displayed pairing key.
+3. Tap Start streaming.
+
+Camera and Local Network permissions are used only for direct camera streaming to the selected receiver. Wi-Fi video uses unencrypted local HTTP and must not be exposed to the public internet.

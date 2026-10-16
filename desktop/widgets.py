@@ -1,8 +1,9 @@
 import math
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlider,
-                               QDoubleSpinBox, QCheckBox, QPushButton, QFrame)
+                               QDoubleSpinBox, QCheckBox, QFrame, QStyle,
+                               QStyleOptionSlider)
 
 
 GROUPS = {
@@ -21,6 +22,29 @@ def label(text, name="muted"):
     widget.setObjectName(name)
     widget.setWordWrap(name not in ("brand", "subtitle", "badge"))
     return widget
+
+
+class ClickableSlider(QSlider):
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            option = QStyleOptionSlider()
+            self.initStyleOption(option)
+            handle = self.style().subControlRect(
+                QStyle.CC_Slider, option, QStyle.SC_SliderHandle, self)
+            if not handle.contains(event.position().toPoint()):
+                groove = self.style().subControlRect(
+                    QStyle.CC_Slider, option, QStyle.SC_SliderGroove, self)
+                horizontal = self.orientation() == Qt.Horizontal
+                start = groove.x() if horizontal else groove.y()
+                length = groove.width() if horizontal else groove.height()
+                handle_length = handle.width() if horizontal else handle.height()
+                position = event.position().x() if horizontal else event.position().y()
+                span = max(0, length - handle_length)
+                offset = min(span, max(0, round(position - start - handle_length / 2)))
+                self.setValue(QStyle.sliderValueFromPosition(
+                    self.minimum(), self.maximum(), offset, span, option.upsideDown))
+        # Let Qt retain its normal handle dragging and keyboard behavior.
+        super().mousePressEvent(event)
 
 
 class Parameter(QWidget):
@@ -43,7 +67,7 @@ class Parameter(QWidget):
         self.spin.setAccessibleName(title)
         row.addWidget(self.spin)
         layout.addLayout(row)
-        self.slider = QSlider(Qt.Horizontal)
+        self.slider = ClickableSlider(Qt.Horizontal)
         self.slider.setRange(0, 1000)
         self.slider.setAccessibleName(title + " slider")
         layout.addWidget(self.slider)
@@ -91,6 +115,11 @@ class ControlGroup(QFrame):
         super().__init__()
         self.definition = definition
         self.camera = None
+        self.updating = False
+        self.send_timer = QTimer(self)
+        self.send_timer.setSingleShot(True)
+        self.send_timer.setInterval(80)
+        self.send_timer.timeout.connect(self.submit)
         self.setObjectName("panel")
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 8, 12, 8)
@@ -106,13 +135,10 @@ class ControlGroup(QFrame):
         for args in definition["fields"]:
             parameter = Parameter(*args)
             self.parameters[args[0]] = parameter
+            parameter.spin.valueChanged.connect(self.schedule_submit)
             layout.addWidget(parameter)
         self.reading = label("Waiting for camera")
         layout.addWidget(self.reading)
-        self.apply = QPushButton("Apply " + definition["title"].lower())
-        self.apply.setStyleSheet("QPushButton { padding: 4px 8px; }")
-        self.apply.clicked.connect(self.submit)
-        layout.addWidget(self.apply)
         self.setEnabled(False)
 
     def update_camera(self, camera, initialize=False):
@@ -120,6 +146,7 @@ class ControlGroup(QFrame):
         caps = camera["capabilities"]
         self.setEnabled(caps[self.definition["manual"]] or caps.get(self.definition.get("auto"), False))
         if initialize:
+            self.send_timer.stop()
             if self.auto:
                 self.auto.blockSignals(True)
                 self.auto.setChecked(camera["current"][self.definition["mode"]])
@@ -138,14 +165,18 @@ class ControlGroup(QFrame):
     def seed(self):
         if not self.camera:
             return
+        self.updating = True
         for name, parameter in self.parameters.items():
             bounds = self.camera["capabilities"][name]
             parameter.set_limits(bounds["min"], bounds["max"], self.camera["current"][name])
+        self.updating = False
 
     def mode_changed(self, automatic):
         if not automatic:
             self.seed()
         self.enable_parameters()
+        self.send_timer.stop()
+        self.submit()
 
     def enable_parameters(self):
         if not self.camera:
@@ -162,5 +193,26 @@ class ControlGroup(QFrame):
             settings.update({name: parameter.spin.value() for name, parameter in self.parameters.items()})
         return settings
 
+    def set_settings(self, settings):
+        self.send_timer.stop()
+        self.updating = True
+        if self.auto and self.definition["mode"] in settings:
+            self.auto.blockSignals(True)
+            self.auto.setChecked(bool(settings[self.definition["mode"]]))
+            self.auto.blockSignals(False)
+        for name, parameter in self.parameters.items():
+            if name in settings:
+                parameter.spin.setValue(float(settings[name]))
+        self.enable_parameters()
+        self.updating = False
+
+    def schedule_submit(self, *_):
+        # Throttle rather than debounce: dragging sends the latest value every
+        # 80 ms, including the final value, without flooding the camera queue.
+        if not self.updating and self.isEnabled() and not self.send_timer.isActive():
+            self.send_timer.start()
+
     def submit(self):
-        self.requested.emit(self.settings())
+        self.send_timer.stop()
+        if not self.updating and self.isEnabled() and self.camera:
+            self.requested.emit(self.settings())

@@ -1,0 +1,1 @@
+webcam,iphone camera,usb camera,wifi camera,streaming,local camera,manual focus,video
