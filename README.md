@@ -26,6 +26,10 @@ and previews are excluded from Git. Executables belong in GitHub Releases.
   intentionally previewed only on the desktop to reserve phone resources for capture.
 - Native Qt desktop interface for Windows/macOS: camera controls on the left,
   a large live preview in the center, and a dedicated connection panel on the right.
+- One normal desktop instance per OS user on macOS and Windows. Opening another
+  copy restores the existing window without restarting its receiver or webcam.
+  Demo/screenshot modes are separate. On the first upgrade from an older build
+  without this control, quit that old build via the menu bar/system tray once.
 - Embedded receiver with automatic startup and a random pairing identity saved
   in macOS Keychain/Windows Credential Locker. Scan once on iPhone; its Keychain
   restores the last connection and transport on the next launch. Reset pairing

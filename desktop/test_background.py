@@ -7,10 +7,10 @@ from unittest.mock import MagicMock, patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, Signal, Qt
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QApplication, QSystemTrayIcon
-from app import MainWindow
+from app import MainWindow, run_window
 from virtual_camera import CameraController
 
 APP = QApplication.instance() or QApplication([])
@@ -111,6 +111,17 @@ class BackgroundTests(unittest.TestCase):
         self.assertIsNone(relay.frame)
         self.assertFalse(relay.accept_phone)
 
+    def test_receiver_start_failure_does_not_leave_an_empty_second_host(self):
+        window = MagicMock(relay=None)
+        application = MagicMock()
+        args = SimpleNamespace(host=None, port=8765, demo=False, screenshot=None)
+        with patch("app.MainWindow", return_value=window):
+            self.assertEqual(run_window(application, args), 1)
+        window.shutdown.assert_called_once()
+        window.close.assert_called_once()
+        window.show.assert_not_called()
+        application.exec.assert_not_called()
+
     def test_windows_tray_click_opens_window(self):
         self.window.close()
         with patch("background.sys.platform", "win32"):
@@ -122,6 +133,17 @@ class BackgroundTests(unittest.TestCase):
         with patch("background.sys.platform", "darwin"):
             self.window.background.activated(QSystemTrayIcon.ActivationReason.Trigger)
         self.assertFalse(self.window.isVisible())
+
+    def test_mac_dock_or_finder_reopen_restores_hidden_window_without_restart(self):
+        self.window.show()
+        self.window.close()
+        with patch("app.sys.platform", "darwin"), patch.object(self.window, "start_receiver") as start, \
+             patch.object(self.window.virtual_camera, "stop") as stop:
+            self.window.application_activation(Qt.ApplicationState.ApplicationActive)
+        self.assertTrue(self.window.isVisible())
+        self.assertFalse(self.window.background_hidden)
+        start.assert_not_called()
+        stop.assert_not_called()
 
     def test_menu_status_contains_no_pairing_credentials(self):
         self.window.background.update_status(True, True, True)

@@ -33,6 +33,7 @@ from usb_setup import USBSetupPanel
 from virtual_camera import VirtualCamera, CameraController, controller_path
 from background import BackgroundController
 from pairing import PairingIdentity, SessionCredentials
+from single_instance import SingleInstance, needs_single_instance
 
 PRIVACY_URL = "https://ibrahimethem.github.io/Free-Cam-App/privacy/"
 TERMS_URL = "https://ibrahimethem.github.io/Free-Cam-App/terms/"
@@ -251,6 +252,7 @@ class MainWindow(QMainWindow):
         # Qt merges QuitRole into the native macOS application menu (Cmd+Q).
         if sys.platform == "darwin" and background:
             self.menuBar().addMenu("NoSub Studio").addAction(self.background.quit_action)
+            application.applicationStateChanged.connect(self.application_activation)
         self.start_receiver()
         self.camera_status_timer = QTimer(self)
         self.camera_status_timer.setInterval(3000)
@@ -1316,6 +1318,13 @@ class MainWindow(QMainWindow):
         self.activateWindow()
         self.refresh()
 
+    def application_activation(self, state):
+        # Finder/Dock reopen can activate the existing Mac process without
+        # launching a secondary process (so there is no local IPC message).
+        if (sys.platform == "darwin" and state == Qt.ApplicationState.ApplicationActive
+                and self.background_hidden and not self.shutdown_complete):
+            self.restore_window()
+
     def request_quit(self):
         if self.camera_install_pending:
             self.restore_window()
@@ -1367,8 +1376,35 @@ def main():
     app.setApplicationName("NoSub Studio")
     app.setStyle("Fusion")
     app.setStyleSheet(STYLE)
+    instance = None
+    if needs_single_instance(args.demo, args.screenshot):
+        try:
+            instance = SingleInstance(app)
+            if not instance.acquire():
+                return 0
+        except RuntimeError as error:
+            QMessageBox.warning(None, "NoSub Studio is already running", str(error))
+            return 1
+    try:
+        return run_window(app, args, instance)
+    finally:
+        if instance is not None:
+            instance.close()
+
+
+def run_window(app, args, instance=None):
     window = MainWindow(args.host or ("127.0.0.1" if args.demo else "0.0.0.0"), args.port, args.demo,
                         background=False if args.screenshot else None)
+    if not args.demo and window.relay is None:
+        # An older build may own the port without our activation protocol. The
+        # startup warning is already shown; do not leave a blank second host/tray.
+        window.shutdown()
+        window.close()
+        return 1
+    if instance is not None:
+        instance.bind(window.restore_window)
+        # Release the instance lock only after the receiver/camera cleanup slot.
+        app.aboutToQuit.connect(instance.close)
     window.show()
     if args.screenshot:
         def capture():
@@ -1377,8 +1413,8 @@ def main():
             window.close()
             app.quit()
         QTimer.singleShot(500, capture)
-    sys.exit(app.exec())
+    return app.exec()
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

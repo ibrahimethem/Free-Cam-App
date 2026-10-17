@@ -26,7 +26,7 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
           PYTHONPATH: desktop
-        run: python -m unittest desktop.test_pairing desktop.test_background desktop.test_camera_setup desktop.test_virtual_camera desktop.test_windows_camera desktop.test_desktop.DesktopTests.test_virtual_camera_toggles_do_not_restart_or_block_wifi_receiver
+        run: python -m unittest desktop.test_pairing desktop.test_background desktop.test_camera_setup desktop.test_virtual_camera desktop.test_windows_camera desktop.test_single_instance desktop.test_desktop.DesktopTests.test_virtual_camera_toggles_do_not_restart_or_block_wifi_receiver
       - name: Build native camera and desktop package (no installation)
         run: python desktop/build.py --native-camera
       - name: Portable native pixel checks
