@@ -6,6 +6,12 @@ desktop receiver. Signed Mac builds expose NoSub Camera directly; OBS remains
 an optional output path. Windows 11 x64 also has native webcam output. No account,
 cloud relay, or paid service is used by the code.
 
+Original project code is [MIT licensed](LICENSE). Bundled dependencies retain
+their own licenses; see [third-party notices](THIRD_PARTY_NOTICES.md).
+Our [Code signing policy](https://ibrahimethem.github.io/Free-Cam-App/code-signing/)
+describes release approval and signing status. SignPath Foundation eligibility
+and Windows production signing are pending, not yet provided.
+
 ## Repository and development
 
 This is one repository for the entire product: `desktop/` is shared by Windows

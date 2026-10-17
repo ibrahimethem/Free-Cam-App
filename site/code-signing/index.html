@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Code signing policy — NoSub Cam</title><meta name="description" content="Release signing status and approval policy for NoSub Cam and NoSub Studio.">
+  <link rel="icon" href="../assets/app-icon.png"><link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header"><nav class="nav shell" aria-label="Primary navigation"><a class="brand" href="../"><img src="../assets/app-icon.png" alt=""><span>NoSub Cam</span></a><div class="nav-links"><a href="../download/">Downloads</a><a href="../support/">Support</a><a href="../privacy/">Privacy</a></div></nav></header>
+  <main id="main">
+    <header class="legal-hero"><div class="shell"><div class="eyebrow">Security / Releases</div><h1>Code signing policy</h1><p>What is signed, who approves it, and the current status of our releases.</p></div></header>
+    <div class="document shell"><article class="document-body">
+      <section><h2>Current status</h2><p>macOS packages use the developer's Apple Developer ID signature and Apple notarization. Windows test packages are currently unsigned. NoSub is preparing an application for free open-source signing through <a href="https://signpath.io/">SignPath.io</a> and the <a href="https://signpath.org/">SignPath Foundation</a>. Acceptance and production signing are pending; no Foundation sponsorship or signature is claimed yet.</p><p>If accepted, free code signing will be provided by SignPath.io, with a certificate issued to SignPath Foundation. The Windows signature publisher would be SignPath Foundation; the project's owner remains İbrahim Ethem Karalı.</p></section>
+      <section><h2>Maintainer and approval roles</h2><p>Committer, reviewer and signing approver: <a href="https://github.com/ibrahimethem">İbrahim Ethem Karalı (@ibrahimethem)</a>. Production signing requires the maintainer's manual approval. External contributions must be reviewed before entering a release build. Multi-factor authentication is required for repository and signing-service access.</p></section>
+      <section><h2>Build origin and signing scope</h2><p>Windows signing requests must originate from the reviewed source in <a href="https://github.com/ibrahimethem/Free-Cam-App">the public repository</a>, built on GitHub-hosted runners. Pull requests and unreviewed branches must not receive production signing credentials.</p><p>Project executables, camera components and installers are distinct signing targets. The camera DLL includes modified Microsoft sample code and requires explicit eligibility review. Upstream Python, Qt and other third-party binaries must not be re-signed as original NoSub code.</p></section>
+      <section><h2>Release checks</h2><p>A release is not marked signed until its signatures and timestamps verify against the intended publisher. Installers must cover the embedded application, camera components, uninstaller and outer installer. Checksums are generated after signing. Failed or incomplete signing blocks production publication.</p></section>
+      <section><h2>License and privacy</h2><p>Original project code is <a href="https://github.com/ibrahimethem/Free-Cam-App/blob/main/LICENSE">MIT licensed</a>; third-party components retain their own licenses. NoSub sends camera data only to the receiver selected by the user, with no advertising or analytics SDK. See the <a href="../privacy/">Privacy Policy</a> and <a href="../support/">support contact</a>.</p></section>
+    </article></div>
+  </main>
+  <footer class="site-footer"><div class="shell footer-row"><span>© 2026 İbrahim Ethem Karalı</span><div class="footer-links"><a href="../">Home</a><a href="../download/">Downloads</a><a href="../privacy/">Privacy</a><a href="../terms/">Terms</a></div></div></footer>
+</body>
+</html>

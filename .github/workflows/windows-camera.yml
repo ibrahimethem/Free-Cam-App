@@ -1,6 +1,11 @@
 name: Build Windows camera test package
 on:
   workflow_dispatch:
+    inputs:
+      request_signing:
+        description: Request SignPath signing of project binaries (requires Foundation acceptance and manual approval; not an installer release)
+        type: boolean
+        default: false
   pull_request:
     paths:
       - 'desktop/**'
@@ -22,13 +27,30 @@ jobs:
           architecture: x64
       - name: Install build dependencies
         run: python -m pip install -r desktop/requirements-build.txt
+      - name: Read product version
+        id: product
+        shell: pwsh
+        run: |
+          $version = (Get-Content desktop/VERSION -Raw).Trim()
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid desktop version' }
+          "version=$version" >> $env:GITHUB_OUTPUT
       - name: Hardware-free regression tests
         env:
           QT_QPA_PLATFORM: offscreen
           PYTHONPATH: desktop
-        run: python -m unittest desktop.test_packaging desktop.test_pairing desktop.test_background desktop.test_camera_setup desktop.test_virtual_camera desktop.test_windows_camera desktop.test_single_instance desktop.test_desktop.DesktopTests.test_virtual_camera_toggles_do_not_restart_or_block_wifi_receiver
+        run: python -m unittest desktop.test_signing_config desktop.test_packaging desktop.test_pairing desktop.test_background desktop.test_camera_setup desktop.test_virtual_camera desktop.test_windows_camera desktop.test_single_instance desktop.test_desktop.DesktopTests.test_virtual_camera_toggles_do_not_restart_or_block_wifi_receiver
       - name: Build native camera and desktop package (no installation)
         run: python desktop/build.py --native-camera
+      - name: Verify project binary metadata and license inclusion
+        shell: pwsh
+        run: |
+          $version = (Get-Content desktop/VERSION -Raw).Trim()
+          $names = @('FreeCam.exe', '_internal/native-camera/NoSubCamera.dll', '_internal/native-camera/NoSubCameraSetup.exe')
+          foreach ($name in $names) {
+            $info = (Get-Item (Join-Path dist/FreeCam $name)).VersionInfo
+            if ($info.ProductName -ne 'NoSub Studio' -or $info.ProductVersion -ne $version) { throw "Product metadata missing: $name" }
+          }
+          if (-not (Test-Path dist/FreeCam/_internal/licenses/LICENSE)) { throw 'MIT license missing from bundle' }
       - name: Portable native pixel checks
         shell: pwsh
         run: |
@@ -57,6 +79,70 @@ jobs:
           }
           python desktop/packaging/package_windows.py --allow-unsigned
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      # First signing phase only. Production installer creation stays blocked
+      # until uninstaller and outer-installer signing are configured/verified too.
+      - name: Check signing configuration
+        if: github.event_name == 'workflow_dispatch' && inputs.request_signing
+        shell: pwsh
+        env:
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          SIGNPATH_CERTIFICATE_THUMBPRINT: ${{ vars.SIGNPATH_CERTIFICATE_THUMBPRINT }}
+        run: |
+          if ('${{ github.ref }}' -ne 'refs/heads/main') { throw 'Production signing is restricted to main' }
+          if (-not $env:SIGNPATH_API_TOKEN -or -not $env:SIGNPATH_ORGANIZATION_ID) { throw 'SignPath acceptance/account setup is still required' }
+          if ($env:SIGNPATH_CERTIFICATE_THUMBPRINT -notmatch '^[0-9A-Fa-f]{40}$') { throw 'Pin the approved signer certificate before signing' }
+      - name: Upload project signing input
+        id: signing_input
+        if: github.event_name == 'workflow_dispatch' && inputs.request_signing && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: NoSub-Studio-project-signing-input
+          path: |
+            dist/FreeCam/FreeCam.exe
+            dist/FreeCam/_internal/native-camera/NoSubCamera.dll
+            dist/FreeCam/_internal/native-camera/NoSubCameraSetup.exe
+          if-no-files-found: error
+          retention-days: 14
+      - name: Request manually approved SignPath signing
+        if: github.event_name == 'workflow_dispatch' && inputs.request_signing && github.ref == 'refs/heads/main'
+        uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092 # v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: nosub-studio
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: nosub-studio-binaries-v1
+          github-artifact-id: ${{ steps.signing_input.outputs.artifact-id }}
+          parameters: |
+            version: "${{ steps.product.outputs.version }}"
+          wait-for-completion: true
+          output-artifact-directory: build/signpath-returned
+      - name: Verify approved signed binaries
+        if: github.event_name == 'workflow_dispatch' && inputs.request_signing && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          EXPECTED_SIGNER: ${{ vars.SIGNPATH_CERTIFICATE_THUMBPRINT }}
+        run: |
+          $names = @('FreeCam.exe', '_internal/native-camera/NoSubCamera.dll', '_internal/native-camera/NoSubCameraSetup.exe')
+          $version = (Get-Content desktop/VERSION -Raw).Trim()
+          foreach ($name in $names) {
+            $file = Join-Path build/signpath-returned $name
+            $signature = Get-AuthenticodeSignature -LiteralPath $file
+            if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Thumbprint -ne $env:EXPECTED_SIGNER -or -not $signature.TimeStamperCertificate) {
+              throw 'Signed output is untrusted, untimestamped, or from an unexpected publisher'
+            }
+            $info = (Get-Item -LiteralPath $file).VersionInfo
+            if ($info.ProductName -ne 'NoSub Studio' -or $info.ProductVersion -ne $version) { throw 'Unexpected product/version in signed artifact' }
+          }
+      - name: Upload verified signed project binaries (not a finished installer)
+        if: github.event_name == 'workflow_dispatch' && inputs.request_signing && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: NoSub-Studio-signed-project-binaries
+          path: build/signpath-returned/
+          if-no-files-found: error
+          retention-days: 14
       - name: Upload unsigned installer (not a public release)
         uses: actions/upload-artifact@v4
         with:

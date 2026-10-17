@@ -12,6 +12,8 @@ credential_backend = ('keyring.backends.macOS' if sys.platform == 'darwin'
 windows_camera = root / 'build' / 'native-camera-windows'
 camera_binaries = []
 camera_data = [(str(root / 'ios/FreeCam/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png'), 'assets')]
+camera_data.extend([(str(root / 'LICENSE'), 'licenses'),
+                    (str(root / 'THIRD_PARTY_NOTICES.md'), 'licenses')])
 if sys.platform == 'win32' and (windows_camera / 'Release' / 'NoSubCamera.dll').is_file():
     for name in ('NoSubCamera.dll', 'NoSubCameraSetup.exe'):
         path = windows_camera / 'Release' / name

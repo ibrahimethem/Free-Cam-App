@@ -1,0 +1,29 @@
+#pragma code_page(65001)
+#include <windows.h>
+@NOSUB_ICON_RESOURCE@
+1 VERSIONINFO
+FILEVERSION @NOSUB_VERSION_COMMAS@,0
+PRODUCTVERSION @NOSUB_VERSION_COMMAS@,0
+FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+FILEFLAGS 0
+FILEOS VOS_NT_WINDOWS32
+FILETYPE @NOSUB_FILE_TYPE@
+FILESUBTYPE 0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904B0"
+    BEGIN
+      VALUE "CompanyName", "İbrahim Ethem Karalı\0"
+      VALUE "FileDescription", "@NOSUB_DESCRIPTION@\0"
+      VALUE "FileVersion", "@NOSUB_VERSION@\0"
+      VALUE "ProductName", "NoSub Studio\0"
+      VALUE "ProductVersion", "@NOSUB_VERSION@\0"
+      VALUE "OriginalFilename", "@NOSUB_FILENAME@\0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0409, 1200
+  END
+END

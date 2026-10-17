@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Service configuration candidate; Foundation must approve the derived DLL.
+     Never replace these exact paths with an all-DLL/all-EXE wildcard. -->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <parameter name="version" required="true" />
+  </parameters>
+  <zip-file>
+    <pe-file path="FreeCam.exe" product-name="NoSub Studio" product-version="${version}">
+      <authenticode-sign />
+    </pe-file>
+    <pe-file path="_internal/native-camera/NoSubCamera.dll" product-name="NoSub Studio" product-version="${version}">
+      <authenticode-sign />
+    </pe-file>
+    <pe-file path="_internal/native-camera/NoSubCameraSetup.exe" product-name="NoSub Studio" product-version="${version}">
+      <authenticode-sign />
+    </pe-file>
+  </zip-file>
+</artifact-configuration>

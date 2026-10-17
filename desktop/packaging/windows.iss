@@ -37,6 +37,7 @@ SetupLogging=yes
 VersionInfoVersion={#ProductVersion}
 VersionInfoDescription=NoSub Studio installer
 InfoBeforeFile={#RepoRoot}\desktop\packaging\WINDOWS-INSTALL.txt
+LicenseFile={#RepoRoot}\LICENSE
 
 [Languages]
 Name: english; MessagesFile: compiler:Default.isl
@@ -54,6 +55,8 @@ Name: camera; Description: NoSub Camera for Windows video apps; Types: full
 Name: desktopicon; Description: Create a desktop shortcut; Flags: unchecked
 
 [Files]
+Source: {#RepoRoot}\LICENSE; DestDir: {app}; Flags: ignoreversion; Components: app
+Source: {#RepoRoot}\THIRD_PARTY_NOTICES.md; DestDir: {app}; Flags: ignoreversion; Components: app
 Source: {#RepoRoot}\dist\FreeCam\*; DestDir: {app}; Flags: ignoreversion recursesubdirs createallsubdirs; Components: app
 ; Frame Server must load the camera from an administrator-protected directory.
 Source: {#RepoRoot}\build\native-camera-windows\Release\NoSubCamera.dll; DestDir: {autopf}\NoSub Studio Camera; Components: camera; Flags: ignoreversion
