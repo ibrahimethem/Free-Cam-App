@@ -88,8 +88,9 @@ jobs:
           SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
           SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
           SIGNPATH_CERTIFICATE_THUMBPRINT: ${{ vars.SIGNPATH_CERTIFICATE_THUMBPRINT }}
+          BUILD_REF: ${{ github.ref }}
         run: |
-          if ('${{ github.ref }}' -ne 'refs/heads/main') { throw 'Production signing is restricted to main' }
+          if ($env:BUILD_REF -ne 'refs/heads/main') { throw 'Production signing is restricted to main' }
           if (-not $env:SIGNPATH_API_TOKEN -or -not $env:SIGNPATH_ORGANIZATION_ID) { throw 'SignPath acceptance/account setup is still required' }
           if ($env:SIGNPATH_CERTIFICATE_THUMBPRINT -notmatch '^[0-9A-Fa-f]{40}$') { throw 'Pin the approved signer certificate before signing' }
       - name: Upload project signing input

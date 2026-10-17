@@ -53,7 +53,13 @@ must personally approve production signing requests.
 default). Signing is restricted to `main`, uses GitHub-hosted builds and a
 commit-pinned official SignPath Action, and requires all these settings:
 
-- Secret: `SIGNPATH_API_TOKEN` (never commit or print its value).
+- Protected environment: `windows-signing`, deployment branch restricted to
+  `main`, maintainer approval required. Creation was blocked pending the owner's
+  explicit authorization of this access-control change. It has **not** been
+  created or connected to the workflow yet. Do not add credentials or enable
+  signing until that protection and workflow binding are in place.
+- Environment secret: `SIGNPATH_API_TOKEN` in `windows-signing`, **not** an
+  unrestricted repository secret (never commit or print its value).
 - Variable: `SIGNPATH_ORGANIZATION_ID` (returned by the accepted account).
 - Variable: `SIGNPATH_CERTIFICATE_THUMBPRINT` (approved certificate's public
   40-character SHA-1 identifier, not the private key).
