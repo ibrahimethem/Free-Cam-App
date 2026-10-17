@@ -429,7 +429,7 @@ class MainWindow(QMainWindow):
         self.camera_install.setVisible(controller_path() is not None and not self.demo)
         self.camera_install.clicked.connect(self.install_camera_extension)
         layout.addWidget(self.camera_install)
-        self.camera_settings = QPushButton("Open System Settings…")
+        self.camera_settings = QPushButton("Camera privacy settings…" if sys.platform == "win32" else "Open System Settings…")
         self.camera_settings.setVisible(False)
         self.camera_settings.clicked.connect(self.open_camera_settings)
         layout.addWidget(self.camera_settings)
@@ -1238,7 +1238,7 @@ class MainWindow(QMainWindow):
             self.camera_status.setText("Waiting for Windows setup" if sys.platform == "win32" else "Waiting for macOS approval")
         elif available:
             self.camera_status.setText("NoSub Camera · installed and ready")
-            self.camera_settings.setVisible(False)
+            self.camera_settings.setVisible(sys.platform == "win32")
             if changed and not self.virtual_camera.running:
                 self.output_hint.setText("Enable camera output, then select NoSub Camera in your video app.")
         else:

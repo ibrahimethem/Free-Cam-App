@@ -7,6 +7,7 @@
 
 namespace fs = std::filesystem;
 namespace {
+constexpr const wchar_t* Notices[] = {L"Microsoft-Windows-Camera.txt", L"Microsoft-WIL.txt"};
 void Check(LSTATUS status) { if (status != ERROR_SUCCESS) throw std::runtime_error("Registry operation failed"); }
 fs::path Destination() {
     PWSTR folder = nullptr;
@@ -38,6 +39,17 @@ void Install() {
         throw std::runtime_error("Unsafe installation directory");
     if (fs::exists(destination) && (GetFileAttributesW(destination.c_str()) & FILE_ATTRIBUTE_REPARSE_POINT))
         throw std::runtime_error("Unsafe installation file");
+    const auto notices = directory / L"licenses";
+    if (!fs::exists(notices)) fs::create_directory(notices);
+    if (GetFileAttributesW(notices.c_str()) & FILE_ATTRIBUTE_REPARSE_POINT)
+        throw std::runtime_error("Unsafe license directory");
+    for (const auto* name : Notices) {
+        const auto target = notices / name;
+        if (fs::exists(target) && (GetFileAttributesW(target.c_str()) & FILE_ATTRIBUTE_REPARSE_POINT))
+            throw std::runtime_error("Unsafe license file");
+        if (!CopyFileW((source.parent_path() / L"licenses" / name).c_str(), target.c_str(), FALSE))
+            throw std::runtime_error("Required third-party license notice missing");
+    }
     if (!CopyFileW(source.c_str(), destination.c_str(), FALSE))
         throw std::runtime_error("Cannot replace camera DLL: close camera/video apps and retry");
     HKEY key = nullptr;
@@ -68,6 +80,8 @@ void Uninstall() {
     const auto result = RegDeleteTreeW(classes, NoSub::SourceId);
     RegCloseKey(classes);
     if (result != ERROR_FILE_NOT_FOUND) Check(result);
+    for (const auto* name : Notices) DeleteFileW((destination.parent_path() / L"licenses" / name).c_str());
+    RemoveDirectoryW((destination.parent_path() / L"licenses").c_str());
     RemoveDirectoryW(destination.parent_path().c_str()); // succeeds only when empty
 }
 }

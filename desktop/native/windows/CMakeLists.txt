@@ -39,6 +39,8 @@ target_link_options(NoSubCameraSetup PRIVATE "/MANIFESTUAC:level='requireAdminis
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/licenses")
 configure_file("${camera_sample_SOURCE_DIR}/LICENSE" "${CMAKE_CURRENT_BINARY_DIR}/licenses/Microsoft-Windows-Camera.txt" COPYONLY)
 configure_file("${wil_SOURCE_DIR}/LICENSE" "${CMAKE_CURRENT_BINARY_DIR}/licenses/Microsoft-WIL.txt" COPYONLY)
+add_custom_command(TARGET NoSubCamera POST_BUILD COMMAND "${CMAKE_COMMAND}" -E copy_directory
+  "${CMAKE_CURRENT_BINARY_DIR}/licenses" "$<TARGET_FILE_DIR:NoSubCamera>/licenses")
 add_executable(NoSubPixelTests tests/FramePixels.cpp)
 target_include_directories(NoSubPixelTests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 add_executable(NoSubSourceTests tests/MediaSource.cpp)

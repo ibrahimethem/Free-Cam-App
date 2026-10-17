@@ -60,7 +60,7 @@ class CameraSetupTests(unittest.TestCase):
             self.window.camera_install_message(1, "Installation completed.")
         self.assertFalse(self.window.camera_install_pending)
         self.assertTrue(self.window.camera_install.isHidden())
-        self.assertTrue(self.window.camera_settings.isHidden())
+        self.assertEqual(self.window.camera_settings.isHidden(), sys.platform != "win32")
 
     def test_settings_button_only_opens_settings_not_an_activation_request(self):
         with patch("app.QDesktopServices.openUrl", return_value=True) as open_url, \
