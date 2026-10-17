@@ -13,13 +13,14 @@ ROOT = Path(__file__).resolve().parents[2]
 def verify_payload(image):
     """Finder customization must never mutate the signed bundle's metadata."""
     with tempfile.TemporaryDirectory(prefix='nosub-dmg-verify-') as directory:
+        directory = str(Path(directory).resolve())  # macOS /var is a /private/var alias.
         result = subprocess.check_output(['hdiutil', 'attach', '-readonly', '-nobrowse',
             '-noautoopen', '-plist', '-mountpoint', directory, str(image)])
         mounts = [entry['mount-point'] for entry in plistlib.loads(result)['system-entities']
                   if 'mount-point' in entry]
-        if mounts != [directory]:
-            raise RuntimeError('Unexpected DMG mount layout')
         try:
+            if [str(Path(mount).resolve()) for mount in mounts] != [directory]:
+                raise RuntimeError('Unexpected DMG mount layout')
             root = Path(directory)
             if (root / 'Applications').readlink() != Path('/Applications'):
                 raise RuntimeError('Invalid Applications shortcut')
