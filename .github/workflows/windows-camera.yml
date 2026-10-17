@@ -79,8 +79,48 @@ jobs:
           }
           python desktop/packaging/package_windows.py --allow-unsigned
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      # First signing phase only. Production installer creation stays blocked
-      # until uninstaller and outer-installer signing are configured/verified too.
+      - name: Upload unsigned installer (not a public release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: NoSub-Studio-Windows-x64-installer-test
+          path: dist/installers/*
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload unsigned test package (not a public release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: NoSub-Studio-Windows-x64-test
+          path: dist/FreeCam/
+          if-no-files-found: error
+          retention-days: 14
+
+  # First signing phase only. Separate protected job: PR/test builds cannot
+  # access the environment token. Installer/uninstaller signing remains pending.
+  sign_project_binaries:
+    if: github.event_name == 'workflow_dispatch' && inputs.request_signing && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: windows-2025
+    timeout-minutes: 30
+    environment: windows-signing
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Read product version
+        id: product
+        shell: pwsh
+        run: |
+          $version = (Get-Content desktop/VERSION -Raw).Trim()
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid desktop version' }
+          "version=$version" >> $env:GITHUB_OUTPUT
+      - name: Retrieve this workflow's tested portable package
+        uses: actions/download-artifact@v4
+        with:
+          name: NoSub-Studio-Windows-x64-test
+          path: dist/FreeCam
       - name: Check signing configuration
         if: github.event_name == 'workflow_dispatch' && inputs.request_signing
         shell: pwsh
@@ -142,19 +182,5 @@ jobs:
         with:
           name: NoSub-Studio-signed-project-binaries
           path: build/signpath-returned/
-          if-no-files-found: error
-          retention-days: 14
-      - name: Upload unsigned installer (not a public release)
-        uses: actions/upload-artifact@v4
-        with:
-          name: NoSub-Studio-Windows-x64-installer-test
-          path: dist/installers/*
-          if-no-files-found: error
-          retention-days: 14
-      - name: Upload unsigned test package (not a public release)
-        uses: actions/upload-artifact@v4
-        with:
-          name: NoSub-Studio-Windows-x64-test
-          path: dist/FreeCam/
           if-no-files-found: error
           retention-days: 14

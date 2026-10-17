@@ -1,6 +1,9 @@
 # SignPath Foundation preparation
 
-Status: **preparing an eligibility application, not accepted or signed yet**.
+Status: **eligibility application submitted on October 17, 2026; acceptance and
+signing are pending**. The owner completed reCAPTCHA and the form displayed
+“Form submitted — Thank you, we'll be in touch soon.” No acceptance or account
+credentials have been received through this workflow.
 Owner approved MIT licensing of original project code and Foundation publisher
 identity on October 17, 2026. Third-party software retains its original licenses.
 
@@ -53,11 +56,10 @@ must personally approve production signing requests.
 default). Signing is restricted to `main`, uses GitHub-hosted builds and a
 commit-pinned official SignPath Action, and requires all these settings:
 
-- Protected environment: `windows-signing`, deployment branch restricted to
-  `main`, maintainer approval required. Creation was blocked pending the owner's
-  explicit authorization of this access-control change. It has **not** been
-  created or connected to the workflow yet. Do not add credentials or enable
-  signing until that protection and workflow binding are in place.
+- Protected environment: `windows-signing`, created with explicit owner approval;
+  only the `main` branch is permitted, and @ibrahimethem is a required reviewer.
+  The separate `sign_project_binaries` job uses this environment. Ordinary build
+  and PR jobs do not use it. No signing credentials have been added yet.
 - Environment secret: `SIGNPATH_API_TOKEN` in `windows-signing`, **not** an
   unrestricted repository secret (never commit or print its value).
 - Variable: `SIGNPATH_ORGANIZATION_ID` (returned by the accepted account).
