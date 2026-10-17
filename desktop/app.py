@@ -2,6 +2,7 @@
 import argparse
 import ipaddress
 import json
+import math
 import secrets
 import socket
 import sys
@@ -23,11 +24,15 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QFrame, QVBox
                                QInputDialog)
 
 from server import Relay
+from controls import validate_command
 from theme import STYLE, COLORS
 from widgets import GROUPS, ControlGroup, label
 from preview import Preview, demo_image
 from usb_transport import USBBridge
 from usb_setup import USBSetupPanel
+from virtual_camera import VirtualCamera, CameraController, controller_path
+from background import BackgroundController
+from pairing import PairingIdentity, SessionCredentials
 
 PRIVACY_URL = "https://ibrahimethem.github.io/Free-Cam-App/privacy/"
 TERMS_URL = "https://ibrahimethem.github.io/Free-Cam-App/terms/"
@@ -109,7 +114,7 @@ class PairingQRDialog(QDialog):
         description = label(detail)
         description.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(description)
-        hint = label("On iPhone, tap Scan pairing QR. The temporary key is filled automatically.")
+        hint = label("Scan once in NoSub Cam. This computer keeps the same key until you reset pairing.")
         hint.setWordWrap(True)
         hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(hint)
@@ -171,10 +176,18 @@ def demo_report():
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, host="0.0.0.0", port=8765, demo=False, preferences=None):
+    def __init__(self, host="0.0.0.0", port=8765, demo=False, preferences=None, background=None, pairing=None):
         super().__init__()
         self.host, self.port, self.demo = host, port, demo
+        self.pairing = pairing or PairingIdentity(SessionCredentials() if demo else None)
+        self.background_hidden = False
+        self.shutdown_complete = False
         self.relay = None
+        self.virtual_camera = VirtualCamera()
+        self.camera_controller = CameraController(self)
+        self.camera_controller.message.connect(self.camera_install_message)
+        self.camera_install_pending = False
+        self.camera_available = None
         self.server_thread = None
         self.capture_id = None
         self.format_id = None
@@ -189,6 +202,9 @@ class MainWindow(QMainWindow):
         self.last_sensor_settings = self.read_preference("lastSensorSettings", {})
         self.presets = self.read_preference("sensorPresets", {})
         self.last_preset = str(self.preferences.value("lastPreset", "") or "")
+        self.default_sensor_settings = None
+        self.pending_preset = None
+        self.preset_capture_baseline = {}
         self.demo_state = demo_report()
         self.demo_picture = demo_image() if demo else QImage()
         self.native_source = None
@@ -222,7 +238,26 @@ class MainWindow(QMainWindow):
         self.timer.setInterval(40)
         self.timer.timeout.connect(self.refresh)
         self.timer.start()
+        if background is None:
+            background = (not demo and sys.platform in ("darwin", "win32")
+                          and QApplication.platformName() != "offscreen")
+        self.background = BackgroundController(self, enabled=background)
+        self.background.show_requested.connect(self.restore_window)
+        self.background.quit_requested.connect(self.request_quit)
+        application = QApplication.instance()
+        if self.background.available:
+            application.setQuitOnLastWindowClosed(False)
+        application.aboutToQuit.connect(self.shutdown)
+        # Qt merges QuitRole into the native macOS application menu (Cmd+Q).
+        if sys.platform == "darwin" and background:
+            self.menuBar().addMenu("NoSub Studio").addAction(self.background.quit_action)
         self.start_receiver()
+        self.camera_status_timer = QTimer(self)
+        self.camera_status_timer.setInterval(3000)
+        self.camera_status_timer.timeout.connect(self.refresh_camera_installation)
+        self.refresh_camera_installation()
+        if controller_path() is not None and not self.demo:
+            self.camera_status_timer.start()
 
     def read_preference(self, key, fallback):
         try:
@@ -311,15 +346,20 @@ class MainWindow(QMainWindow):
         self.capture_label = label("Capture\nWaiting for camera · native landscape · up to 30 FPS")
         layout.addWidget(self.capture_label)
         layout.addWidget(label("All camera settings apply automatically. Resolution and frame-rate changes restore automatic sensor modes."))
-        layout.addWidget(label("DETAIL PRESETS", "section"))
+        layout.addWidget(label("CAMERA PRESETS", "section"))
         self.preset = StudioComboBox()
         self.preset.setAccessibleName("Saved camera preset")
         self.preset.activated.connect(self.apply_selected_preset)
         layout.addWidget(self.preset)
+        self.preset_status = label("Default settings · no changes")
+        layout.addWidget(self.preset_status)
         preset_actions = QHBoxLayout()
-        self.save_preset = QPushButton("Save preset")
-        self.save_preset.clicked.connect(self.prompt_save_preset)
+        self.save_preset = QPushButton("Save")
+        self.save_preset.clicked.connect(self.save_current_preset)
         preset_actions.addWidget(self.save_preset)
+        self.save_as_preset = QPushButton("Save As…")
+        self.save_as_preset.clicked.connect(self.prompt_save_preset)
+        preset_actions.addWidget(self.save_as_preset)
         self.delete_preset = QPushButton("Delete")
         self.delete_preset.clicked.connect(self.delete_selected_preset)
         preset_actions.addWidget(self.delete_preset)
@@ -332,6 +372,7 @@ class MainWindow(QMainWindow):
         for name, definition in GROUPS.items():
             group = ControlGroup(definition)
             group.requested.connect(self.submit_sensor_settings)
+            group.edited.connect(self.refresh_preset_status)
             self.groups[name] = group
             layout.addWidget(group)
         self.restore = QPushButton("Restore automatic settings")
@@ -369,19 +410,33 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.usb_setup)
         self.preview = Preview()
         layout.addWidget(self.preview, 1)
-        bottom = QHBoxLayout()
-        bottom.setContentsMargins(18, 14, 18, 14)
-        descriptions = QVBoxLayout()
-        descriptions.setSpacing(4)
-        descriptions.addWidget(label("Webcam output", "title"))
-        descriptions.addWidget(label("Add the stream as an OBS Media Source, then start OBS Virtual Camera."))
-        bottom.addLayout(descriptions, 1)
+        return center
+
+    def build_camera_output(self, layout):
+        layout.addWidget(label("WEBCAM OUTPUT", "section"))
+        self.camera_status = label("Checking NoSub Camera…")
+        layout.addWidget(self.camera_status)
+        self.output_hint = label("Native camera is not available in this build. OBS output is still available."
+                                 if controller_path() is None else
+                                 "Enable camera output, then select NoSub Camera in your video app.")
+        self.output_hint.setWordWrap(True)
+        layout.addWidget(self.output_hint)
+        self.camera_output = QPushButton("Enable NoSub Camera")
+        self.camera_output.setEnabled(False)
+        self.camera_output.clicked.connect(self.toggle_camera_output)
+        layout.addWidget(self.camera_output)
+        self.camera_install = QPushButton("Install camera")
+        self.camera_install.setVisible(controller_path() is not None and not self.demo)
+        self.camera_install.clicked.connect(self.install_camera_extension)
+        layout.addWidget(self.camera_install)
+        self.camera_settings = QPushButton("Open System Settings…")
+        self.camera_settings.setVisible(False)
+        self.camera_settings.clicked.connect(self.open_camera_settings)
+        layout.addWidget(self.camera_settings)
         self.copy_obs = QPushButton("Copy OBS stream URL")
         self.copy_obs.setObjectName("primary")
         self.copy_obs.clicked.connect(self.copy_obs_url)
-        bottom.addWidget(self.copy_obs)
-        layout.addLayout(bottom)
-        return center
+        layout.addWidget(self.copy_obs)
 
     def build_right(self):
         scroll = QScrollArea()
@@ -429,8 +484,15 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.key_label)
         self.key = QLineEdit()
         self.key.setReadOnly(True)
+        self.key.setEchoMode(QLineEdit.EchoMode.Password)
         self.key.setAccessibleName("Pairing key")
         layout.addWidget(self.key)
+        self.reveal_key = QPushButton("Show pairing key")
+        self.reveal_key.setCheckable(True)
+        self.reveal_key.toggled.connect(self.toggle_pairing_key)
+        layout.addWidget(self.reveal_key)
+        self.pairing_hint = label("Scan once to remember this computer.")
+        layout.addWidget(self.pairing_hint)
         self.show_pairing_qr = QPushButton("Show pairing QR")
         self.show_pairing_qr.setObjectName("primary")
         self.show_pairing_qr.clicked.connect(self.open_pairing_qr)
@@ -438,12 +500,16 @@ class MainWindow(QMainWindow):
         self.copy_pair = QPushButton("Copy pairing details")
         self.copy_pair.clicked.connect(self.copy_pairing)
         layout.addWidget(self.copy_pair)
+        self.reset_pair = QPushButton("Reset pairing…")
+        self.reset_pair.clicked.connect(self.reset_pairing)
+        layout.addWidget(self.reset_pair)
         self.receiver_button = QPushButton("Stop receiver")
         self.receiver_button.clicked.connect(self.toggle_receiver)
         layout.addWidget(self.receiver_button)
         self.network_hint = label("Enter this address and key in NoSub Cam on your iPhone. Keep both devices on the same private Wi-Fi.")
         layout.addWidget(self.network_hint)
         layout.addWidget(label("Audio\nVideo only in this prototype"))
+        self.build_camera_output(layout)
         layout.addWidget(label("LEGAL & SUPPORT", "section"))
         legal = QHBoxLayout()
         legal.setSpacing(2)
@@ -458,13 +524,15 @@ class MainWindow(QMainWindow):
 
     def start_receiver(self):
         try:
-            self.relay = Relay((self.host, self.port), secrets.token_hex(8), web_ui=False)
+            # Bind first: an accidental second instance must not touch credentials.
+            self.relay = Relay((self.host, self.port), secrets.token_hex(16), web_ui=False)
         except OSError as error:
             self.relay = None
             QMessageBox.warning(self, "Receiver could not start", f"{error}\n\nClose another NoSub Studio receiver or choose a different port with --port.")
             self.receiver_button.setText("Start receiver")
             self.refresh()
             return
+        self.relay.token = self.pairing.token()
         self.relay.accept_phone = self.source.currentData() == "wifi"
         self.server_thread = threading.Thread(target=self.relay.serve_forever, daemon=True)
         self.server_thread.start()
@@ -472,6 +540,11 @@ class MainWindow(QMainWindow):
         for address in lan_addresses():
             self.address.addItem(f"http://{address}:{self.relay.server_port}")
         self.key.setText(self.relay.token)
+        self.reveal_key.setChecked(False)
+        self.pairing_hint.setText("Pairing remembered securely on this computer. Scan once on your iPhone."
+                                 if self.pairing.persisted and not self.demo else
+                                 "Demo pairing is not saved." if self.demo else
+                                 "Secure storage unavailable: this key lasts only until you quit. Allow credential-store access to remember pairing.")
         self.receiver_button.setText("Stop receiver")
         self.capture_id = None
         self.format_id = None
@@ -488,10 +561,20 @@ class MainWindow(QMainWindow):
         self.refresh()
 
     def stop_receiver(self):
+        self.virtual_camera.stop()
+        self.camera_output.setText("Enable NoSub Camera")
+        self.pending_preset = None
         self.usb_bridge.stop()
         if self.native_source:
             self.native_source.stop()
         if self.relay:
+            # Revoke the old server object too, including keep-alive HTTP clients.
+            # The persistent identity itself is preserved for the next receiver.
+            with self.relay.changed:
+                self.relay.token = secrets.token_hex(16)
+                self.relay.accept_phone = False
+                self.relay.frame = None
+                self.relay.changed.notify_all()
             self.relay.shutdown()
             self.relay.server_close()
             if self.server_thread:
@@ -500,7 +583,7 @@ class MainWindow(QMainWindow):
         self.key.clear()
         self.address.clear()
         self.receiver_button.setText("Start receiver")
-        self.statusBar().showMessage("Receiver stopped · pairing key revoked")
+        self.statusBar().showMessage("Receiver stopped · saved pairing kept for next time")
         self.refresh()
 
     def source_changed(self):
@@ -517,6 +600,9 @@ class MainWindow(QMainWindow):
         self.address.setEnabled(mode == "wifi")
         self.key_label.setVisible(mode != "continuity")
         self.key.setVisible(mode != "continuity")
+        self.reveal_key.setVisible(mode != "continuity")
+        self.pairing_hint.setVisible(mode != "continuity")
+        self.reset_pair.setVisible(mode != "continuity")
         self.show_pairing_qr.setVisible(mode != "continuity")
         hints = {
             "wifi": "Enter the receiver address and key on your iPhone. Use the same private Wi-Fi.",
@@ -637,6 +723,10 @@ class MainWindow(QMainWindow):
             self.relay.last_camera = time.monotonic()
 
     def refresh(self):
+        if self.virtual_camera.error:
+            self.output_hint.setText(f"Camera output stopped: {self.virtual_camera.error}")
+            self.camera_output.setText("Enable NoSub Camera")
+            self.virtual_camera.error = ""
         online = False
         camera = None
         if self.relay:
@@ -724,8 +814,18 @@ class MainWindow(QMainWindow):
                     group.update_camera(camera, initialize)
                     if pending_configuration:
                         group.setEnabled(False)
-                if new_session and self.last_sensor_settings:
-                    self.set_sensor_editor_settings(self.last_sensor_settings)
+                if new_session:
+                    self.default_sensor_settings = self.preset_editor_settings()
+                    self.preset_capture_baseline = {key: self.default_sensor_settings[key]
+                                                    for key in ("resolution", "frameRate")
+                                                    if key in self.default_sensor_settings}
+                if new_session:
+                    name = self.preset.currentData()
+                    saved = self.presets.get(name)
+                    if isinstance(saved, dict) and saved:
+                        self.begin_preset(saved, name, state)
+                    elif self.last_sensor_settings:
+                        self.begin_preset(self.last_sensor_settings, "", state)
                 if state["revision"] > camera["appliedRevision"]:
                     self.control_status.setText("Waiting for iPhone acknowledgement…")
                 elif camera["error"]:
@@ -738,7 +838,7 @@ class MainWindow(QMainWindow):
             else:
                 with self.relay.changed:
                     sequence, frame = self.relay.sequence, self.relay.frame
-                if state["connected"] and sequence != self.last_sequence and frame:
+                if not self.background_hidden and state["connected"] and sequence != self.last_sequence and frame:
                     decoded = QImage.fromData(frame, "JPEG")
                     if not decoded.isNull():
                         self.preview.image = decoded
@@ -763,7 +863,7 @@ class MainWindow(QMainWindow):
             for group in self.groups.values():
                 group.setEnabled(False)
             self.control_status.setText("Connect your iPhone to enable sensor controls." if self.relay else "Start the receiver to connect your iPhone.")
-        self.save_preset.setEnabled(online)
+        self.refresh_preset_status(online=online)
         self.preset.setEnabled(online and bool(self.presets))
         self.delete_preset.setEnabled(bool(self.preset.currentData()))
         self.restore.setEnabled(online and any(camera["capabilities"][flag] for flag in ("autoExposure", "autoFocus", "autoWhiteBalance")))
@@ -778,7 +878,17 @@ class MainWindow(QMainWindow):
             self.control_status.setText("Continuity Camera: sensor controls are managed by macOS. Use NoSub Cam Wi-Fi or Direct USB for manual settings.")
             self.capture_label.setText("Capture\nmacOS camera source" + (" · up to 24 FPS" if connected else " · waiting"))
         self.copy_pair.setEnabled(bool(self.relay) and not self.demo and self.source.currentData() != "continuity")
-        self.preview.update()
+        if self.pending_preset:
+            for widget in (self.camera_position, self.output_orientation, self.resolution,
+                           self.frame_rate, self.preset, self.delete_preset, self.restore,
+                           *self.groups.values()):
+                widget.setEnabled(False)
+            self.advance_preset()
+        connected = bool(self.relay and state["connected"])
+        self.background.update_status(bool(self.relay), connected, self.virtual_camera.running)
+        self.camera_controller.set_streaming_activity(connected or self.virtual_camera.running)
+        if not self.background_hidden:
+            self.preview.update()
 
     def submit(self, settings):
         if not self.relay:
@@ -799,6 +909,14 @@ class MainWindow(QMainWindow):
             settings.update(group.settings())
         return settings
 
+    def preset_editor_settings(self):
+        settings = self.sensor_editor_settings()
+        if self.format_id:
+            settings["resolution"] = self.format_id
+        if self.frame_rate_id:
+            settings["frameRate"] = self.frame_rate_id
+        return settings
+
     def set_sensor_editor_settings(self, settings):
         if not isinstance(settings, dict):
             return
@@ -813,19 +931,58 @@ class MainWindow(QMainWindow):
         accepted = self.submit(settings)
         if accepted:
             self.remember_sensor_settings()
-            self.last_preset = preset_name or ""
-            self.preferences.setValue("lastPreset", self.last_preset)
-            self.preferences.sync()
-            if not preset_name:
-                self.preset.blockSignals(True)
-                self.preset.setCurrentIndex(0)
-                self.preset.blockSignals(False)
+            if preset_name is not None:
+                self.last_preset = preset_name
+                self.preferences.setValue("lastPreset", self.last_preset)
+                self.preferences.sync()
+        self.refresh_preset_status()
         return accepted
+
+    def preset_is_modified(self):
+        baseline = self.presets.get(self.preset.currentData(), self.default_sensor_settings)
+        if baseline is None:
+            return False
+        baseline = baseline.copy()
+        current = self.preset_editor_settings()
+        # Older presets contain only sensor settings; leave their capture
+        # format unspecified until the user next saves an edited preset.
+        for key in ("resolution", "frameRate"):
+            if key not in baseline:
+                if key in self.preset_capture_baseline:
+                    baseline[key] = self.preset_capture_baseline[key]
+                else:
+                    current.pop(key, None)
+        if current.keys() != baseline.keys():
+            return True
+        for key, value in current.items():
+            previous = baseline[key]
+            if isinstance(value, (bool, str)) or isinstance(previous, (bool, str)):
+                if value != previous:
+                    return True
+            elif not math.isclose(value, previous, rel_tol=1e-6, abs_tol=1e-3):
+                return True
+        return False
+
+    def refresh_preset_status(self, online=None):
+        state = self.relay.snapshot() if self.relay else None
+        if online is None:
+            online = bool(state and state["cameraConnected"])
+        name = self.preset.currentData()
+        modified = self.preset_is_modified()
+        title = name or "Default settings"
+        self.preset_status.setText(title + (" · Applying…" if self.pending_preset else
+                                           " · Modified" if modified else " · no changes"))
+        self.preset_status.setStyleSheet("color: #ffb16b;" if modified else "")
+        settled = bool(online and not self.pending_preset and state and state["camera"] and
+                       state["revision"] <= state["camera"]["appliedRevision"])
+        self.save_preset.setEnabled(settled and modified)
+        self.save_as_preset.setEnabled(settled and modified)
+        self.save_preset.setToolTip("Overwrite the selected preset" if name else "Save changes as a new preset")
 
     def refresh_preset_choices(self, selected=None):
         self.preset.blockSignals(True)
         self.preset.clear()
-        self.preset.addItem("Select a saved preset…", None)
+        self.preset.addItem("Default settings", None)
         for name in sorted(self.presets, key=str.casefold):
             self.preset.addItem(name, name)
         if selected in self.presets:
@@ -834,31 +991,121 @@ class MainWindow(QMainWindow):
         self.delete_preset.setEnabled(bool(self.preset.currentData()))
 
     def prompt_save_preset(self):
+        if not self.preset_is_modified():
+            return
         name, accepted = QInputDialog.getText(self, "Save camera preset", "Preset name")
         if accepted:
             self.save_preset_named(name)
 
-    def save_preset_named(self, name):
+    def save_current_preset(self):
+        name = self.preset.currentData()
+        if name in self.presets:
+            self.save_preset_named(name, overwrite=True)
+        else:
+            self.prompt_save_preset()
+
+    def save_preset_named(self, name, overwrite=False):
+        if not self.preset_is_modified():
+            return False
         name = " ".join(str(name).split())[:60]
         if not name:
             self.statusBar().showMessage("Enter a preset name.", 3000)
             return False
-        self.presets[name] = self.sensor_editor_settings()
+        if name in self.presets and not overwrite:
+            self.statusBar().showMessage("That preset name already exists. Choose a new name or use Save to overwrite the selected preset.", 6000)
+            return False
+        self.presets[name] = self.preset_editor_settings()
+        self.remember_sensor_settings()
         self.last_preset = name
         self.preferences.setValue("lastPreset", name)
         self.write_preference("sensorPresets", self.presets)
         self.refresh_preset_choices(name)
+        self.refresh_preset_status()
         self.statusBar().showMessage(f"Preset saved · {name}", 3000)
         return True
 
     def apply_selected_preset(self, _index=None):
         name = self.preset.currentData()
-        settings = self.presets.get(name)
+        settings = self.presets.get(name) if name else self.default_sensor_settings
         if not isinstance(settings, dict) or not settings:
             return
-        self.set_sensor_editor_settings(settings)
-        if self.submit_sensor_settings(self.sensor_editor_settings(), preset_name=name):
-            self.statusBar().showMessage(f"Preset applied · {name}", 3000)
+        if not self.relay:
+            return
+        state = self.relay.snapshot()
+        if not state["cameraConnected"]:
+            return
+        self.begin_preset(settings, name or "", state)
+        self.refresh()
+
+    def begin_preset(self, settings, name, state):
+        # Called both by explicit selection and by the first report of a new
+        # capture session. Enqueue without refreshing recursively during setup.
+        self.preset_capture_baseline = {key: state["camera"]["current"][key]
+                                        for key in ("resolution", "frameRate")
+                                        if key in state["camera"]["current"]}
+        for group in self.groups.values():
+            group.send_timer.stop()
+        self.pending_preset = {"settings": settings.copy(), "name": name or "",
+                               "session": state["camera"]["session"], "revision": None,
+                               "phase": "format", "deadline": time.monotonic() + 20}
+
+    def advance_preset(self):
+        pending = self.pending_preset
+        if not pending or not self.relay:
+            return
+        state = self.relay.snapshot()
+        camera = state["camera"]
+        error = None
+        if not state["cameraConnected"] or camera["session"] != pending["session"]:
+            error = "Camera disconnected or changed. Select the preset again after reconnecting."
+        elif time.monotonic() > pending["deadline"]:
+            error = "Camera did not acknowledge the preset in time. Reconnect and try again."
+        elif pending["revision"] is not None:
+            if camera["appliedRevision"] < pending["revision"]:
+                return
+            error = camera["error"] or None
+        if error:
+            self.pending_preset = None
+            self.refresh_preset_status()
+            self.statusBar().showMessage("Preset not fully applied: " + error, 10000)
+            return
+        if pending["phase"] == "sensor":
+            self.pending_preset = None
+            self.remember_sensor_settings()
+            self.last_preset = pending["name"]
+            self.preferences.setValue("lastPreset", self.last_preset)
+            self.preferences.sync()
+            self.refresh_preset_status()
+            self.statusBar().showMessage("Preset applied · " + (pending["name"] or "Default settings"), 4000)
+            return
+        if state["revision"] > camera["appliedRevision"]:
+            return
+        settings = pending["settings"]
+        command = None
+        # Each format change resets sensor modes. Wait for acknowledgement and
+        # refreshed hardware ranges before issuing the next stage.
+        for key in ("resolution", "frameRate"):
+            if key in settings and settings[key] != camera["current"].get(key):
+                command = {key: settings[key]}
+                break
+        if command is None:
+            command = {key: value for key, value in settings.items()
+                       if key not in ("resolution", "frameRate")}
+        try:
+            validate_command(command, camera["capabilities"])
+        except ValueError as error:
+            self.pending_preset = None
+            self.refresh_preset_status()
+            self.statusBar().showMessage("Preset not fully applied: " + str(error), 10000)
+            return
+        if not any(key in command for key in ("resolution", "frameRate")):
+            pending["phase"] = "sensor"
+            self.set_sensor_editor_settings(command)
+        pending["revision"] = state["revision"] + 1
+        pending["deadline"] = time.monotonic() + 20
+        if not self.submit(command):
+            self.pending_preset = None
+            self.refresh_preset_status()
 
     def delete_selected_preset(self):
         name = self.preset.currentData()
@@ -870,6 +1117,7 @@ class MainWindow(QMainWindow):
             self.preferences.setValue("lastPreset", "")
         self.write_preference("sensorPresets", self.presets)
         self.refresh_preset_choices()
+        self.refresh_preset_status()
         self.statusBar().showMessage(f"Preset deleted · {name}", 3000)
 
     def restore_auto(self):
@@ -912,6 +1160,27 @@ class MainWindow(QMainWindow):
             QApplication.clipboard().setText(f"{connection}\nPairing key: {self.relay.token}")
             self.statusBar().showMessage("Pairing details copied", 3000)
 
+    def toggle_pairing_key(self, visible):
+        self.key.setEchoMode(QLineEdit.EchoMode.Normal if visible else QLineEdit.EchoMode.Password)
+        self.reveal_key.setText("Hide pairing key" if visible else "Show pairing key")
+
+    def reset_pairing(self):
+        answer = QMessageBox.question(self, "Reset pairing",
+            "Disconnect paired phones and create a new key? You will need to scan the QR code again. Existing OBS URLs will also stop working.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self.pairing.reset()
+        except Exception:
+            QMessageBox.warning(self, "Pairing not reset", "Secure storage is unavailable. Your current pairing has not been changed.")
+            return
+        was_running = self.relay is not None
+        if was_running:
+            self.stop_receiver()
+            self.start_receiver()
+        self.statusBar().showMessage("Pairing reset · scan the new QR code on your iPhone", 8000)
+
     def open_pairing_qr(self):
         if not self.relay:
             self.statusBar().showMessage("Start the receiver before pairing.")
@@ -928,14 +1197,117 @@ class MainWindow(QMainWindow):
             QApplication.clipboard().setText(url)
             self.statusBar().showMessage("OBS stream URL copied · paste it into an OBS Media Source", 5000)
 
+    def toggle_camera_output(self):
+        if self.virtual_camera.running:
+            self.virtual_camera.stop()
+            self.camera_output.setText("Enable NoSub Camera")
+            self.output_hint.setText("NoSub Camera output disabled.")
+            return
+        if not self.relay:
+            self.output_hint.setText("Start the receiver before enabling camera output.")
+            return
+        try:
+            self.virtual_camera.start(self.relay, self.camera_controller)
+        except Exception as error:
+            self.output_hint.setText(f"Cannot enable camera: {error}")
+            return
+        self.camera_output.setText("Disable NoSub Camera")
+        self.output_hint.setText("Sending 1080p30 · select NoSub Camera in your video app.")
+
+    def refresh_camera_installation(self):
+        native = controller_path() is not None and not self.demo
+        try:
+            available = native and self.camera_controller.available()
+        except Exception:
+            # Do not report success or hide recovery controls after a failed check.
+            self.camera_status.setText("Camera availability could not be checked.")
+            self.camera_install.setVisible(native)
+            self.camera_output.setEnabled(self.virtual_camera.running)
+            return
+        changed = available != self.camera_available
+        self.camera_available = available
+        self.camera_install.setVisible(native and not available)
+        self.camera_output.setEnabled(available or self.virtual_camera.running)
+        if available:
+            self.camera_status.setText("NoSub Camera · installed and ready")
+            self.camera_settings.setVisible(False)
+            if changed and not self.virtual_camera.running:
+                self.output_hint.setText("Enable camera output, then select NoSub Camera in your video app.")
+        elif self.camera_install_pending:
+            self.camera_status.setText("Waiting for macOS approval")
+        else:
+            self.camera_status.setText("NoSub Camera · setup required" if native else
+                                       "Native camera unavailable in this build")
+            if native and changed and not self.virtual_camera.running:
+                self.output_hint.setText("Install NoSub Camera once. macOS may require approval in General > Login Items & Extensions > Camera Extensions.")
+
+    def open_camera_settings(self):
+        QDesktopServices.openUrl(QUrl("x-apple.systempreferences:com.apple.LoginItems-Settings.extension"))
+
+    def install_camera_extension(self):
+        if controller_path() is None or self.camera_install_pending:
+            return
+        answer = QMessageBox.question(self, "Install NoSub Camera",
+            "Install the NoSub Camera system extension? macOS may ask you to approve it in System Settings. OBS is not required.")
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self.camera_install_pending = True
+            self.camera_install.setEnabled(False)
+            self.camera_controller.install()
+        except Exception as error:
+            self.camera_install_message(2, str(error))
+
+    def camera_install_message(self, state, message):
+        self.output_hint.setText(message)
+        self.camera_settings.setVisible(state == 0)
+        if state != 0:
+            self.camera_install_pending = False
+            self.camera_install.setEnabled(True)
+        self.refresh_camera_installation()
+
     def transform_preview(self):
         self.preview.mirror = self.mirror.isChecked()
         self.preview.rotation = self.rotation.currentIndex() * 90
         self.preview.update()
 
-    def closeEvent(self, event):
+    def restore_window(self):
+        self.background_hidden = False
+        self.showNormal()
+        self.raise_()
+        self.activateWindow()
+        self.refresh()
+
+    def request_quit(self):
+        if self.camera_install_pending:
+            self.restore_window()
+            self.output_hint.setText("Finish the macOS camera approval before quitting NoSub Studio.")
+            return
+        self.shutdown()
+        QApplication.instance().quit()
+
+    def shutdown(self):
+        if self.shutdown_complete:
+            return
+        self.shutdown_complete = True
         self.timer.stop()
+        self.camera_status_timer.stop()
         self.stop_receiver()
+        self.camera_controller.set_streaming_activity(False)
+        self.background.close()
+
+    def closeEvent(self, event):
+        if self.background.available and not self.shutdown_complete:
+            self.background_hidden = True
+            self.hide()
+            event.ignore()
+            return
+        if self.camera_install_pending:
+            self.output_hint.setText("Finish the macOS camera approval before closing NoSub Studio.")
+            event.ignore()
+            return
+        self.shutdown()
+        QApplication.instance().setQuitOnLastWindowClosed(True)
         event.accept()
 
 
@@ -956,11 +1328,13 @@ def main():
     app.setApplicationName("NoSub Studio")
     app.setStyle("Fusion")
     app.setStyleSheet(STYLE)
-    window = MainWindow(args.host or ("127.0.0.1" if args.demo else "0.0.0.0"), args.port, args.demo)
+    window = MainWindow(args.host or ("127.0.0.1" if args.demo else "0.0.0.0"), args.port, args.demo,
+                        background=False if args.screenshot else None)
     window.show()
     if args.screenshot:
         def capture():
             window.grab().save(str(args.screenshot), "PNG")
+            window.shutdown()
             window.close()
             app.quit()
         QTimer.singleShot(500, capture)

@@ -13,12 +13,13 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QSettings
 from PySide6.QtGui import QImage, QColor
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from app import (MainWindow, PRIVACY_URL, demo_report, external_link, lan_addresses,
                  pairing_payload, qr_pixmap)
 from theme import STYLE
 from usb_setup import APPLE_DEVICES_URL
+from pairing import PairingIdentity, SessionCredentials
 
 APP = QApplication.instance() or QApplication([])
 APP.setStyle("Fusion")
@@ -29,7 +30,8 @@ class DesktopTests(unittest.TestCase):
     def setUp(self):
         self.settings_directory = tempfile.TemporaryDirectory()
         self.preferences = QSettings(self.settings_directory.name + "/settings.ini", QSettings.IniFormat)
-        self.window = MainWindow("127.0.0.1", 0, preferences=self.preferences)
+        self.window = MainWindow("127.0.0.1", 0, preferences=self.preferences,
+                                 pairing=PairingIdentity(SessionCredentials()))
         self.report = demo_report()
 
     def tearDown(self):
@@ -82,12 +84,46 @@ class DesktopTests(unittest.TestCase):
         self.assertFalse(self.window.relay.web_ui)
         self.assertFalse(self.window.key.text() == "")
 
-    def test_usb_source_revokes_wifi_key_and_preserves_manual_controls(self):
+    def test_background_close_keeps_live_receiver_and_native_output_running(self):
+        old_quit_policy = APP.quitOnLastWindowClosed()
+        original_background = self.window.background
+        self.window.background = MagicMock(available=True)
+        writer = MagicMock()
+        old_key = self.window.relay.token
+        try:
+            with patch("virtual_camera.controller_path", return_value="native-library"), \
+                 patch("virtual_camera.NativeFrameWriter", return_value=writer):
+                self.window.virtual_camera.start(self.window.relay, self.window.camera_controller)
+            self.window.show()
+            self.window.close()
+            self.assertFalse(self.window.isVisible())
+            self.assertTrue(self.window.virtual_camera.running)
+            self.assertEqual(self.window.relay.token, old_key)
+            image = QImage(64, 48, QImage.Format.Format_RGB32)
+            image.fill(QColor("red"))
+            data = QByteArray()
+            buffer = QBuffer(data)
+            buffer.open(QIODevice.WriteOnly)
+            image.save(buffer, "JPEG")
+            self.assertEqual(self.post("/frame", bytes(data), "image/jpeg")[0], 204)
+            deadline = time.monotonic() + 1
+            while not writer.write.called and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertTrue(writer.write.called)
+            self.window.restore_window()
+            self.assertTrue(self.window.isVisible())
+        finally:
+            self.window.shutdown()
+            self.window.background = original_background
+            original_background.close()
+            APP.setQuitOnLastWindowClosed(old_quit_policy)
+
+    def test_usb_source_reuses_pairing_but_disables_wifi_ingest(self):
         self.connect_camera()
         old_key = self.window.relay.token
         with patch.object(self.window.usb_bridge, "scan"):
             self.window.source.setCurrentIndex(self.window.source.findData("usb"))
-        self.assertNotEqual(self.window.relay.token, old_key)
+        self.assertEqual(self.window.relay.token, old_key)
         self.assertFalse(self.window.relay.accept_phone)
         self.assertEqual(self.post("/frame", b"\xff\xd8test\xff\xd9", "image/jpeg")[0], 409)
         self.window.relay.exchange_camera(self.report)
@@ -197,6 +233,32 @@ class DesktopTests(unittest.TestCase):
         self.assertEqual(self.window.key.text(), "")
         self.assertTrue(all(not group.isEnabled() for group in self.window.groups.values()))
         self.assertTrue(self.window.preview.image.isNull())
+
+    def test_receiver_restart_remembers_pairing_and_revokes_old_server(self):
+        old_server = self.window.relay
+        token = old_server.token
+        self.window.stop_receiver()
+        self.assertNotEqual(old_server.token, token)
+        self.window.start_receiver()
+        self.assertEqual(self.window.relay.token, token)
+
+    def test_reset_pairing_revokes_old_key_and_keeps_new_key(self):
+        token = self.window.relay.token
+        with patch("app.QMessageBox.question", return_value=QMessageBox.StandardButton.Yes):
+            self.window.reset_pairing()
+        self.assertNotEqual(self.window.relay.token, token)
+        saved = self.window.relay.token
+        self.window.stop_receiver()
+        self.window.start_receiver()
+        self.assertEqual(self.window.relay.token, saved)
+
+    def test_cancel_reset_keeps_pairing_and_receiver(self):
+        server = self.window.relay
+        token = server.token
+        with patch("app.QMessageBox.question", return_value=QMessageBox.StandardButton.No):
+            self.window.reset_pairing()
+        self.assertIs(self.window.relay, server)
+        self.assertEqual(server.token, token)
 
     def test_snapshots_cannot_modify_receiver_state(self):
         self.connect_camera()

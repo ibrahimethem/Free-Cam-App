@@ -12,6 +12,9 @@ struct ContentView: View {
     @AppStorage("localNetworkPermission") private var localNetworkPermissionRaw = LocalNetworkPermissionState.unknown.rawValue
     @State private var key = ""
     @State private var usb = false
+    @State private var rememberedPairing: SavedPairing?
+    @State private var hasLoadedPairing = false
+    @State private var pairingError: String?
     @State private var refreshesLocalNetworkAfterSettings = false
     @State private var showsStopConfirmation = false
     private let snapshotMode = ProcessInfo.processInfo.arguments.contains("--snapshot")
@@ -20,7 +23,11 @@ struct ContentView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    ConnectionForm(address: $address, key: $key, usb: $usb)
+                    ConnectionForm(address: $address, key: $key, usb: $usb,
+                                   pairingSaved: pairingMatchesSaved,
+                                   hasSavedPairing: rememberedPairing != nil,
+                                   pairingError: pairingError,
+                                   onPair: savePairing, onForget: forgetPairing)
                         .disabled(camera.isStreaming)
                     HStack(spacing: 10) {
                         Circle().fill(camera.isStreaming ? StudioTheme.accent : StudioTheme.muted)
@@ -112,6 +119,16 @@ struct ContentView: View {
             if snapshotMode {
                 address = "http://192.168.1.24:8765"
                 key = "NOSUB-DEMO"
+            } else if !hasLoadedPairing {
+                hasLoadedPairing = true
+                do {
+                    if let saved = try PairingKeychain().load() {
+                        rememberedPairing = saved
+                        address = saved.address
+                        key = saved.key
+                        usb = saved.usesUSB
+                    }
+                } catch { pairingError = "Saved pairing could not be loaded. Scan the QR code to connect." }
             }
         }
     }
@@ -152,6 +169,7 @@ struct ContentView: View {
         case .stopStreaming:
             showsStopConfirmation = true
         case .startStreaming:
+            savePairing()
             camera.start(address: address, key: key, usb: usb)
         case .requestPermission:
             Task { @MainActor in
@@ -172,6 +190,35 @@ struct ContentView: View {
         case .unavailable:
             break
         }
+    }
+
+    private var pairingMatchesSaved: Bool {
+        guard let rememberedPairing else { return false }
+        return rememberedPairing.key == key.trimmingCharacters(in: .whitespacesAndNewlines)
+            && rememberedPairing.address == address.trimmingCharacters(in: .whitespacesAndNewlines)
+            && rememberedPairing.usesUSB == usb
+    }
+
+    private func savePairing() {
+        guard !snapshotMode else { return }
+        do {
+            let saved = try SavedPairing(address: address, key: key, usesUSB: usb)
+            try PairingKeychain().save(saved)
+            rememberedPairing = saved
+            pairingError = nil
+        } catch { pairingError = "Pairing was not saved securely. You can still connect for this session." }
+    }
+
+    private func forgetPairing() {
+        guard !snapshotMode else { return }
+        do {
+            try PairingKeychain().forget()
+            rememberedPairing = nil
+            key = ""
+            address = ""
+            usb = false
+            pairingError = nil
+        } catch { pairingError = "Saved pairing could not be removed. Please try again." }
     }
 
     private func refreshCameraAuthorization() {

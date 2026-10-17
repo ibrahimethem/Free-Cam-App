@@ -22,6 +22,8 @@ targets:
       path: Info.plist
       properties:
         CFBundleDisplayName: NoSub Cam
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         NSCameraUsageDescription: NoSub Cam uses the camera you select to stream live video directly to your computer.
         NSLocalNetworkUsageDescription: NoSub Cam connects directly to NoSub Studio on your local network to send camera video and settings.

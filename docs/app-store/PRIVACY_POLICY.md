@@ -20,8 +20,11 @@ functionality:
   with the selected desktop receiver.
 - **Connection information.** The user enters a local receiver address and a
   pairing key. The receiver address is stored in the app's private settings so it
-  can be reused. The pairing key is kept only for the current app session and is
-  not intentionally persisted by NoSub Cam.
+  can be reused. The last scanned or started connection, including its pairing
+  key and transport, is saved in the iPhone's Keychain for reconnection. It is
+  device-only and is not synchronized to iCloud. NoSub Studio saves its pairing
+  identity in macOS Keychain or Windows Credential Locker. If secure storage is
+  unavailable, the app warns the user and keeps the key only in memory.
 
 ## How information is used and transmitted
 
@@ -67,10 +70,12 @@ encryption.
 
 ## Retention and deletion
 
-The app stores the receiver address in its private app settings until the user
-changes it or removes the app. The user can clear this information by deleting the
-address in the app or uninstalling the app. Camera frames and pairing keys are not
-intentionally retained by the app after the active session ends.
+Connection details and pairing credentials remain locally until changed or
+forgotten. Use Forget saved pairing on the iPhone to remove its saved connection;
+use Reset pairing in NoSub Studio to revoke previously issued access for all
+phones and OBS URLs. OS credential entries can survive app removal; uninstalling
+alone is not a guaranteed credential-deletion method. Camera frames are not
+intentionally recorded or retained after streaming ends.
 
 Because the publisher does not operate an account or backend and does not collect
 app data, there is no publisher-held account or cloud dataset to access, export, or

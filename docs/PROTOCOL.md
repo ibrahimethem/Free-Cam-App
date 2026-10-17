@@ -17,7 +17,13 @@ The desktop receiver listens on TCP 8765 by default.
 | `GET /stream.mjpg` | MJPEG output for OBS |
 
 Authorization accepts `Authorization: Bearer <key>`; stream URLs may include
-the key as a query parameter. Restarting the receiver rotates the pairing key.
+the key as a query parameter. NoSub Studio remembers a random 128-bit key in
+macOS Keychain or Windows Credential Locker across restarts and transport changes.
+Reset pairing explicitly rotates it and invalidates remembered phone/OBS access.
+Stopping a receiver revokes its old server object, including keep-alive clients,
+without deleting the saved identity. If secure storage is unavailable, the key
+is session-only and the UI warns the user; it is never stored in plaintext settings.
+The standalone `receiver/server.py` CLI still uses an ephemeral key.
 Wi-Fi uses unencrypted local HTTP; do not expose it to the internet.
 The iPhone may keep up to two frame uploads in flight to overlap JPEG encoding
 and network latency. `X-NoSub-Frame-Session` and `X-NoSub-Frame-Sequence` let the
@@ -53,7 +59,7 @@ Video and camera reports become stale after three seconds.
 
 USB carries the same report/command models using a version-1 framed protocol.
 See [the USB specification](../desktop/USB.md) for handshake, packet types,
-limits and frame acknowledgements. Source changes rotate keys and clear state;
+limits and frame acknowledgements. Source changes retain the saved key and clear state;
 HTTP phone uploads are rejected while USB or native input is selected.
 macOS Continuity uses Qt multimedia and has no NoSub Cam sensor command channel.
 

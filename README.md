@@ -1,8 +1,10 @@
 # NoSub Cam
 
 A subscription-free prototype for using an iPhone camera on Windows and macOS.
-The native iOS app sends JPEG frames over Wi-Fi or direct USB to a standalone desktop receiver; OBS exposes
-that stream as a webcam. No account, cloud relay, or paid service is used by the code.
+The native iOS app sends JPEG frames over Wi-Fi or direct USB to a standalone
+desktop receiver. Signed Mac builds expose NoSub Camera directly; OBS remains
+an optional output path (and is currently required on Windows). No account,
+cloud relay, or paid service is used by the code.
 
 ## Repository and development
 
@@ -24,7 +26,10 @@ and previews are excluded from Git. Executables belong in GitHub Releases.
   intentionally previewed only on the desktop to reserve phone resources for capture.
 - Native Qt desktop interface for Windows/macOS: camera controls on the left,
   a large live preview in the center, and a dedicated connection panel on the right.
-- Embedded receiver with automatic startup and a random pairing key per launch.
+- Embedded receiver with automatic startup and a random pairing identity saved
+  in macOS Keychain/Windows Credential Locker. Scan once on iPhone; its Keychain
+  restores the last connection and transport on the next launch. Reset pairing
+  explicitly revokes old keys. Wi-Fi IP changes still require an updated address/QR.
   No browser, web view, or separate server process is needed for the desktop app.
 - Desktop camera settings: rear/front camera, portrait/landscape output, manual
   ISO/shutter, focus, white balance temperature/tint, zoom, and automatic modes,
@@ -32,7 +37,9 @@ and previews are excluded from Git. Executables belong in GitHub Releases.
 - Device-supported 480p, 720p, 1080p, and 4K selection from the desktop, plus
   capability-based 24, 30, and 60 FPS choices. Capture starts at 720p30 with native
   landscape output; delivered FPS depends on resolution, transport, and JPEG encoding.
-- OBS is required for webcam output in this prototype. This is not a standalone virtual camera driver.
+- Signed macOS packages include NoSub Camera for direct 1080p30 webcam output
+  without OBS. Windows-native virtual camera implementation remains pending;
+  OBS/MJPEG output is still available on both platforms.
 - Direct USB transport without Personal Hotspot, using the host Apple USB service; physical device validation is pending.
 - Optional macOS camera input for Continuity Camera, with camera selection and permission handling; Mac validation is pending.
 - No audio, automatic Wi-Fi discovery, installer, or background capture yet.
@@ -49,7 +56,8 @@ in the right connection panel, then enter it and the displayed pairing key in th
 Permit inbound TCP port 8765 on your private network if the firewall prompts.
 Do not run the older command-line receiver at the same time on that port.
 If the port is already in use, close that receiver or run with `--port 8766`.
-Stopping/restarting the receiver rotates its pairing key.
+Stopping/restarting the desktop receiver keeps its securely saved pairing key.
+Use **Reset pairing…** to revoke previously paired devices.
 
 **macOS / source development:** install Python 3.10+ and run these commands
 from the project folder:
@@ -66,6 +74,20 @@ The Qt-based code and packaging specification support both platforms; the Mac
 build still needs to be built and tested on your Mac.
 
 To inspect the UI without an iPhone, run `python desktop/app.py --demo`.
+
+### Background operation
+
+On macOS and Windows, closing the desktop window keeps the receiver, USB link
+and enabled camera output running. A small camera icon remains in the macOS menu
+bar or Windows notification area. Choose **Open NoSub Studio** to reopen the
+window, or **Quit NoSub Studio** to stop streaming and exit. Windows tray clicks
+also reopen the window; macOS uses the icon's menu. Cmd+Q remains a full quit.
+
+If the system tray is unavailable, closing the window exits normally rather than
+leaving an inaccessible process. Demo/screenshot runs keep the normal close-to-exit
+behavior. This does not enable launch-at-login or streaming during system sleep.
+On signed Mac builds, active streaming prevents App Nap without blocking normal
+idle system sleep. Hidden windows skip preview decoding; camera output continues.
 Demo mode is visibly labeled and uses a test image and synthetic camera settings.
 It does not verify physical camera behavior, and listens on loopback only.
 
@@ -167,8 +189,9 @@ This mode feeds preview and OBS output, but NoSub Cam's sensor controls and reso
 selector are disabled. Use NoSub Cam Wi-Fi or Direct USB for manual ISO/shutter and
 other sensor settings. Windows shows Continuity Camera as unavailable.
 
-Changing the desktop source restarts the receiver, revokes the old pairing key and
-clears previous frames and settings. Update the iPhone key and OBS stream URL afterward.
+Changing the desktop source restarts the receiver and clears previous frames and
+settings, but keeps the saved pairing key. Switching between USB and Wi-Fi does
+not require a new key.
 
 ## Control the iPhone camera from the desktop
 
@@ -215,14 +238,23 @@ and accept sensor controls, but the desktop resolution and frame-rate selectors 
   the live readout may therefore differ from your requested values.
 - **Zoom:** set the zoom factor to apply it automatically. This version uses the selected
   wide-angle camera's zoom, including digital zoom; it does not switch among physical lenses.
-- To restore an automatic mode, check its Automatic box and click that group's Apply button.
+- To restore an automatic mode, check its Automatic box; it applies immediately.
   The left sidebar's Restore automatic settings button restores all supported auto modes.
 
 Detailed ISO/shutter, focus, white-balance, and zoom choices are cached locally by
 both NoSub Studio and NoSub Cam after a valid change. They are restored when capture
-starts again; incompatible cached values are discarded safely. Use **Save preset**
-to name the current detailed settings. Selecting a saved preset applies it immediately;
-presets remain on the computer and can be deleted from the same section.
+starts again; incompatible cached values are discarded safely. Selecting a saved
+preset applies its resolution, FPS, and detailed camera settings. The desktop waits
+for each format change to be acknowledged before applying sensor settings. The
+selected preset is also reapplied when a new streaming session connects. Older
+presets without resolution/FPS keep the current format. Unsupported settings are
+reported without changing the stored preset. Editing keeps that preset selected and shows
+**Modified** without changing its saved values. **Save** overwrites the selected
+preset, while **Save As…** creates a new named preset. With no preset selected,
+**Save** asks for a name. Both save buttons are disabled until settings differ
+from the selected preset or the initial settings. Returning to the saved values
+clears the modified indicator. Presets remain on the computer and can be deleted
+from the same section.
 
 The sliders and numeric fields stay in sync. Exposure and zoom sliders use a
 logarithmic scale for easier adjustment across a large range. Mirror and rotation
@@ -264,7 +296,8 @@ Stream URLs contain the pairing key, so treat them as private. No recordings are
 saved; the receiver keeps only the latest JPEG in memory. The native app clears
 stale preview frames after three seconds. OBS may retain its last displayed frame.
 Stop the OBS virtual camera
-when you finish. Restarting the receiver rotates the key.
+when you finish. Use **Reset pairing…** to revoke shared desktop stream URLs;
+the separate command-line receiver still generates a new key at launch.
 
 The receiver bounds upload sizes and drops old frames instead of building a queue.
 JPEG transport is deliberately simple for the initial prototype; H.264/WebRTC

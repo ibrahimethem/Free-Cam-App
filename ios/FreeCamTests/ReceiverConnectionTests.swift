@@ -3,6 +3,16 @@ import AVFoundation
 @testable import FreeCam
 
 final class ReceiverConnectionTests: XCTestCase {
+    func testSavedPairingValidationAndEncoding() throws {
+        let pairing = try SavedPairing(address: " http://192.168.1.20:8765 ", key: " secret ", usesUSB: false)
+        XCTAssertEqual(pairing.address, "http://192.168.1.20:8765")
+        XCTAssertEqual(pairing.key, "secret")
+        XCTAssertEqual(try JSONDecoder().decode(SavedPairing.self, from: JSONEncoder().encode(pairing)), pairing)
+        XCTAssertThrowsError(try SavedPairing(address: "http://8.8.8.8", key: "secret", usesUSB: false))
+        XCTAssertThrowsError(try SavedPairing(address: "", key: " ", usesUSB: true))
+        XCTAssertNoThrow(try SavedPairing(address: "", key: "usb-key", usesUSB: true))
+    }
+
     func testWhiteBalanceReadingsClampTransientHardwareValues() {
         let invalid = AVCaptureDevice.WhiteBalanceGains(
             redGain: 0, greenGain: .nan, blueGain: 99)

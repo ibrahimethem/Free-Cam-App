@@ -55,6 +55,14 @@ Upload English metadata and screenshots without a binary
 
 Upload the current no-data-collected App Privacy answer
 
+### ios select_review_build
+
+```sh
+[bundle exec] fastlane ios select_review_build
+```
+
+Select a processed build for App Review without submitting it
+
 ### ios beta
 
 ```sh

@@ -64,7 +64,7 @@ final class CameraControlChannel {
                 self.pollingControls = false
                 guard (response as? HTTPURLResponse)?.statusCode == 200, let data,
                       let command = try? JSONDecoder().decode(CameraCommand.self, from: data) else { return }
-                // A receiver restart resets its revision and rotates the pairing key.
+                // A receiver restart resets revisions but keeps the saved pairing key.
                 guard command.revision > self.appliedRevision else { return }
                 do {
                     try self.capture.apply(command.settings)

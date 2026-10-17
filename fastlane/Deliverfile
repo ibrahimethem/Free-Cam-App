@@ -4,7 +4,8 @@ metadata_path("fastlane/metadata")
 screenshots_path("fastlane/screenshots")
 app_rating_config_path("fastlane/metadata/age_rating.json")
 overwrite_screenshots(true)
-price_tier(0)
+# Set free pricing in App Store Connect; Fastlane's legacy price_tier endpoint
+# is no longer accepted by Apple. Metadata uploads must not change availability.
 submit_for_review(false)
 automatic_release(false)
 precheck_include_in_app_purchases(false)

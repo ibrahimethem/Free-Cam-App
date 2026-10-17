@@ -46,7 +46,12 @@ After every successfully applied command, the phone stores a sensor-only snapsho
 format. Camera position, orientation, resolution, connection details, and pairing keys are
 excluded; an incompatible snapshot is discarded rather than blocking capture.
 
-The pairing key lives in screen/session memory. Only the receiver address persists.
+The last explicitly scanned/started pairing (key, address, and transport) is
+stored in iOS Keychain with AfterFirstUnlockThisDeviceOnly protection and no
+iCloud synchronization. It restores connection fields, not camera streaming:
+the user still explicitly starts capture. Forget saved pairing removes this
+local credential; Reset pairing on the desktop revokes access for all phones.
+Secure-storage failure is surfaced and never falls back to plaintext key storage.
 `ReceiverConnection` validates the private IPv4 or Bonjour receiver URL and constructs
 control requests. Wire field names match the existing Python receiver.
 

@@ -4,7 +4,13 @@ struct ConnectionForm: View {
     @Binding var address: String
     @Binding var key: String
     @Binding var usb: Bool
+    var pairingSaved = false
+    var hasSavedPairing = false
+    var pairingError: String?
+    var onPair: () -> Void = {}
+    var onForget: () -> Void = {}
     @State private var showsPairingScanner = false
+    @State private var confirmsForget = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -33,10 +39,22 @@ struct ConnectionForm: View {
                 .autocorrectionDisabled()
                 .textFieldStyle(.plain)
                 .studioField()
+            if pairingSaved {
+                Label("Pairing saved on this iPhone. Ready to reconnect.", systemImage: "checkmark.shield")
+                    .font(.footnote)
+                    .foregroundStyle(StudioTheme.accent)
+            } else {
+                Text("Scan once. Your computer and iPhone remember the pairing for next time.")
+                    .font(.footnote)
+                    .foregroundStyle(StudioTheme.muted)
+            }
+            if let pairingError {
+                Text(pairingError).font(.footnote).foregroundStyle(StudioTheme.muted)
+            }
             Button {
                 showsPairingScanner = true
             } label: {
-                Label("Scan pairing QR", systemImage: "qrcode.viewfinder")
+                Label(pairingSaved ? "Pair another computer" : "Scan pairing QR", systemImage: "qrcode.viewfinder")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(StudioTheme.input)
                     .frame(maxWidth: .infinity)
@@ -46,6 +64,11 @@ struct ConnectionForm: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("pairing.scan")
+            if hasSavedPairing {
+                Button("Forget saved pairing", role: .destructive) { confirmsForget = true }
+                    .font(.footnote)
+                    .accessibilityIdentifier("pairing.forget")
+            }
         }
         .foregroundStyle(StudioTheme.text)
         .tint(StudioTheme.accent)
@@ -55,7 +78,14 @@ struct ConnectionForm: View {
                 usb = pairing.mode == .usb
                 key = pairing.key
                 if pairing.mode == .wifi { address = pairing.address }
+                onPair()
             }
+        }
+        .confirmationDialog("Forget this computer on this iPhone?", isPresented: $confirmsForget, titleVisibility: .visible) {
+            Button("Forget pairing", role: .destructive, action: onForget)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("You will need to scan its QR code again. To revoke access for every phone, use Reset pairing in NoSub Studio.")
         }
     }
 

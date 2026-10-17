@@ -1,5 +1,9 @@
 # Build outputs and releases
 
+For the native virtual camera implementation and remaining release requirements,
+see [desktop/native/README.md](../desktop/native/README.md). Windows initially
+targets Windows 11; native camera packages are not release-ready yet.
+
 Keep source code in Git and publish executables/installers as GitHub Release
 assets. Use one source tag for all platforms. Do not commit signing credentials.
 

@@ -26,6 +26,9 @@ fastlane/screenshots/screenshots.html
 !.env.example
 *.pem
 *.p12
+*.p8
+*.key
+fastlane/api_key*.json
 *.mobileprovision
 *.provisionprofile
 

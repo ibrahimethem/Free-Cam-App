@@ -154,6 +154,7 @@ class Parameter(QWidget):
 
 class ControlGroup(QFrame):
     requested = Signal(dict)
+    edited = Signal()
 
     def __init__(self, definition):
         super().__init__()
@@ -220,6 +221,7 @@ class ControlGroup(QFrame):
         if not automatic:
             self.seed()
         self.enable_parameters()
+        self.edited.emit()
         self.send_timer.stop()
         self.submit()
 
@@ -254,8 +256,10 @@ class ControlGroup(QFrame):
     def schedule_submit(self, *_):
         # Throttle rather than debounce: dragging sends the latest value every
         # 80 ms, including the final value, without flooding the camera queue.
-        if not self.updating and self.isEnabled() and not self.send_timer.isActive():
-            self.send_timer.start()
+        if not self.updating and self.isEnabled():
+            self.edited.emit()
+            if not self.send_timer.isActive():
+                self.send_timer.start()
 
     def submit(self):
         self.send_timer.stop()

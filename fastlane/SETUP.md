@@ -12,6 +12,9 @@ build for review automatically.
 3. Copy `fastlane/.env.example` to `fastlane/.env` and set the App Store Connect
    API key values plus `REVIEW_PHONE` in international format. Never commit this
    file or the `.p8` key.
+   To reuse an already authorized local API configuration, set `ASC_ENV_FILE`
+   in the ignored `fastlane/.env` instead of copying its key values into this
+   repository. Do not commit the local path or the source dotenv file.
 4. Create the initial App ID/App Store record with
    `bundle exec fastlane ios create_app_record`, or create it manually in App
    Store Connect with SKU `nosub-cam-ios-001`.
@@ -25,6 +28,7 @@ build for review automatically.
 bundle exec fastlane ios validate_release
 bundle exec fastlane ios screenshots
 bundle exec fastlane ios store_assets
+bundle exec fastlane ios select_review_build build_number:1
 bundle exec fastlane ios privacy
 bundle exec fastlane ios beta
 bundle exec fastlane ios release
@@ -34,6 +38,11 @@ bundle exec fastlane ios release
 the signed IPA, and uploads the binary, metadata, and screenshots. It leaves
 `submit_for_review` disabled, so the final build selection and App Review
 submission remain manual in App Store Connect.
+
+Set the app's price to **Free** and configure storefront availability directly
+in App Store Connect. The obsolete Fastlane `price_tier` endpoint is deliberately
+not used by metadata uploads. To refresh metadata while keeping uploaded
+screenshots, run `bundle exec fastlane ios store_assets screenshots:false`.
 
 Use `bundle exec fastlane ios release screenshots:false` to reuse existing
 screenshots. App Privacy upload currently requires Apple ID authentication because

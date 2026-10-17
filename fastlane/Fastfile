@@ -60,13 +60,14 @@ platform :ios do
   end
 
   desc "Upload English metadata and screenshots without a binary"
-  lane :store_assets do
+  lane :store_assets do |options|
     api_key = load_app_store_connect_api_key
     upload_to_app_store(**deliver_options(
       api_key: api_key,
       skip_binary_upload: true,
       skip_metadata: false,
-      skip_screenshots: false
+      skip_screenshots: options[:screenshots].to_s == "false",
+      build_number: options[:build_number]
     ))
   end
 
@@ -77,6 +78,24 @@ platform :ios do
       app_identifier: APP_IDENTIFIER,
       json_path: PRIVACY_DETAILS
     )
+  end
+
+  desc "Select a processed build for App Review without submitting it"
+  lane :select_review_build do |options|
+    load_app_store_connect_api_key
+    number = options[:build_number].to_s
+    UI.user_error!("Pass build_number for the processed build to select.") if number.empty?
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    UI.user_error!("App Store Connect app record not found.") unless app
+    version = app.get_edit_app_store_version(platform: Spaceship::ConnectAPI::Platform::IOS)
+    UI.user_error!("Expected editable version #{APP_VERSION}.") unless version&.version_string == APP_VERSION
+    build = Spaceship::ConnectAPI::Build.all(
+      app_id: app.id, version: APP_VERSION, build_number: number,
+      platform: Spaceship::ConnectAPI::Platform::IOS, processing_states: "VALID"
+    ).first
+    UI.user_error!("Build #{number} is not processed and valid yet.") unless build
+    version.select_build(build_id: build.id)
+    UI.success("Selected #{APP_VERSION} (#{number}) for review; not submitted.")
   end
 
   desc "Build and upload the next TestFlight build"
@@ -122,6 +141,10 @@ platform :ios do
   end
 
   private_lane :load_app_store_connect_api_key do
+    if ENV["ASC_ENV_FILE"].to_s != ""
+      require "dotenv"
+      Dotenv.load(File.expand_path(ENV["ASC_ENV_FILE"]))
+    end
     key_id = ENV["ASC_KEY_ID"].to_s
     key_file = ENV["ASC_KEY_FILE"].to_s
     next nil if key_id.empty? && key_file.empty?
@@ -187,6 +210,7 @@ platform :ios do
     }
     result[:api_key] = options[:api_key] if options[:api_key]
     result[:ipa] = options[:ipa] if options[:ipa]
+    result[:build_number] = options[:build_number].to_s if options[:build_number]
     result
   end
 end

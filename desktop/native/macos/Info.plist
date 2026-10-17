@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+    <key>CFBundleIdentifier</key><string>com.ethem.nosubcam.desktop.camera</string>
+    <key>CFBundleName</key><string>NoSub Camera</string>
+    <key>CFBundleDisplayName</key><string>NoSub Camera</string>
+    <key>CFBundleExecutable</key><string>NoSubCameraExtension</string>
+    <key>CFBundlePackageType</key><string>SYSX</string>
+    <key>CFBundleShortVersionString</key><string>1.0.0</string>
+    <key>CFBundleVersion</key><string>4</string>
+    <key>LSMinimumSystemVersion</key><string>12.3</string>
+    <key>NSSystemExtensionUsageDescription</key>
+    <string>NoSub Camera makes your connected iPhone available as a webcam without OBS.</string>
+    <key>CMIOExtension</key><dict>
+        <key>CMIOExtensionMachServiceName</key><string>G478PYWXZ4.com.ethem.nosubcam.desktop.camera</string>
+    </dict>
+</dict></plist>
