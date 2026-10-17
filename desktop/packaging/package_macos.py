@@ -5,8 +5,28 @@ from pathlib import Path
 import plistlib
 import subprocess
 import sys
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def verify_payload(image):
+    """Finder customization must never mutate the signed bundle's metadata."""
+    with tempfile.TemporaryDirectory(prefix='nosub-dmg-verify-') as directory:
+        result = subprocess.check_output(['hdiutil', 'attach', '-readonly', '-nobrowse',
+            '-noautoopen', '-plist', '-mountpoint', directory, str(image)])
+        mounts = [entry['mount-point'] for entry in plistlib.loads(result)['system-entities']
+                  if 'mount-point' in entry]
+        if mounts != [directory]:
+            raise RuntimeError('Unexpected DMG mount layout')
+        try:
+            root = Path(directory)
+            if (root / 'Applications').readlink() != Path('/Applications'):
+                raise RuntimeError('Invalid Applications shortcut')
+            subprocess.run(['codesign', '--verify', '--deep', '--strict',
+                            str(root / 'NoSub Studio.app')], check=True)
+        finally:
+            subprocess.run(['hdiutil', 'detach', directory], check=True)
 
 
 def main():
@@ -42,10 +62,13 @@ def main():
         'background': 'builtin-arrow',
         'icon_locations': {'NoSub Studio.app': (160, 180), 'Applications': (500, 180), 'MAC-INSTALL.txt': (330, 335)},
         'icon_size': 112, 'text_size': 14,
-        'hide_extensions': ['NoSub Studio.app', 'MAC-INSTALL.txt'],
+        # Do not set hide_extensions on the .app: that adds FinderInfo to the
+        # signed bundle and invalidates strict codesign verification.
+        'hide_extensions': ['MAC-INSTALL.txt'],
         'show_toolbar': False, 'show_status_bar': False,
         'default_view': 'icon-view', 'include_icon_view_settings': True,
     })
+    verify_payload(output)
     subprocess.run(['codesign', '--sign', args.identity, '--timestamp', str(output)], check=True)
     subprocess.run(['hdiutil', 'verify', str(output)], check=True)
     with output.open('rb') as stream:

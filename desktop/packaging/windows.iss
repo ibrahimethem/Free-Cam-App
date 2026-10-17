@@ -120,7 +120,7 @@ end;
 
 procedure RegisterExtraCloseApplicationsResources;
 begin
-  RegisterExtraCloseApplicationsResource(ExpandConstant('{autopf}\NoSub Studio Camera\NoSubCamera.dll'));
+  RegisterExtraCloseApplicationsResource(True, ExpandConstant('{autopf}\NoSub Studio Camera\NoSubCamera.dll'));
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
