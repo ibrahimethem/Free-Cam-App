@@ -21,10 +21,10 @@ class SigningConfigTests(unittest.TestCase):
             self.assertIsNotNone(item.find('s:authenticode-sign', NS))
 
     def test_license_keeps_third_party_provenance(self):
-        license_text = (ROOT / 'LICENSE').read_text()
+        license_text = (ROOT / 'LICENSE').read_text(encoding='utf-8')
         self.assertIn('MIT License', license_text)
         self.assertIn('İbrahim Ethem Karalı', license_text)
-        notices = (ROOT / 'THIRD_PARTY_NOTICES.md').read_text()
+        notices = (ROOT / 'THIRD_PARTY_NOTICES.md').read_text(encoding='utf-8')
         self.assertIn('626f8b19c5f367602f2e89c6b314573d3776c9df', notices)
         self.assertIn('derived from that', notices)
 
