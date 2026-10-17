@@ -1,0 +1,9 @@
+EXPORTS
+  DllCanUnloadNow=WINRT_CanUnloadNow PRIVATE
+  DllGetClassObject PRIVATE
+  nosub_camera_request
+  nosub_camera_available
+  nosub_camera_output_start
+  nosub_camera_output_send
+  nosub_camera_output_stop
+  nosub_camera_activity

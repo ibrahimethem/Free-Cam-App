@@ -38,7 +38,7 @@ and previews are excluded from Git. Executables belong in GitHub Releases.
   capability-based 24, 30, and 60 FPS choices. Capture starts at 720p30 with native
   landscape output; delivered FPS depends on resolution, transport, and JPEG encoding.
 - Signed macOS packages include NoSub Camera for direct 1080p30 webcam output
-  without OBS. Windows-native virtual camera implementation remains pending;
+  without OBS. An experimental Windows 11 x64 native camera is now in source;
   OBS/MJPEG output is still available on both platforms.
 - Direct USB transport without Personal Hotspot, using the host Apple USB service; physical device validation is pending.
 - Optional macOS camera input for Continuity Camera, with camera selection and permission handling; Mac validation is pending.

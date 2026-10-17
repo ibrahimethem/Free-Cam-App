@@ -1,0 +1,45 @@
+name: Build Windows camera test package
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'desktop/**'
+      - 'receiver/**'
+      - '.github/workflows/windows-camera.yml'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          architecture: x64
+      - name: Install build dependencies
+        run: python -m pip install -r desktop/requirements-build.txt
+      - name: Hardware-free regression tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+          PYTHONPATH: desktop
+        run: python -m unittest desktop.test_pairing desktop.test_background desktop.test_camera_setup desktop.test_virtual_camera desktop.test_windows_camera
+      - name: Build native camera and desktop package (no installation)
+        run: python desktop/build.py --native-camera
+      - name: Portable native pixel checks
+        shell: pwsh
+        run: |
+          & build/native-camera-windows/Release/NoSubPixelTests.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload unsigned test package (not a public release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: NoSub-Studio-Windows-x64-test
+          path: |
+            dist/FreeCam/
+            desktop/native/windows/TESTING.md
+          if-no-files-found: error
+          retention-days: 14

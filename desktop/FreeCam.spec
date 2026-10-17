@@ -7,9 +7,19 @@ root = Path(SPECPATH).parent
 signing_identity = os.environ.get('NOSUB_CODESIGN_IDENTITY') or None
 credential_backend = ('keyring.backends.macOS' if sys.platform == 'darwin'
                       else 'keyring.backends.Windows' if sys.platform == 'win32' else None)
+windows_camera = root / 'build' / 'native-camera-windows'
+camera_binaries = []
+camera_data = []
+if sys.platform == 'win32' and (windows_camera / 'Release' / 'NoSubCamera.dll').is_file():
+    for name in ('NoSubCamera.dll', 'NoSubCameraSetup.exe'):
+        path = windows_camera / 'Release' / name
+        if not path.is_file():
+            raise RuntimeError('Incomplete native camera build: ' + name)
+        camera_binaries.append((str(path), 'native-camera'))
+    camera_data.append((str(windows_camera / 'licenses'), 'native-camera/licenses'))
 a = Analysis([str(root / 'desktop' / 'app.py')],
              pathex=[str(root / 'receiver'), str(root / 'desktop')],
-             binaries=[], datas=[], hiddenimports=(['PySide6.QtMultimedia'] if sys.platform == 'darwin' else []) +
+             binaries=camera_binaries, datas=camera_data, hiddenimports=(['PySide6.QtMultimedia'] if sys.platform == 'darwin' else []) +
                                                   ([credential_backend] if credential_backend else []),
              hookspath=[], hooksconfig={}, runtime_hooks=[str(root / 'desktop' / 'diagnostics.py')],
              excludes=['PySide6.QtWebEngineCore', 'PySide6.QtWebEngineWidgets',

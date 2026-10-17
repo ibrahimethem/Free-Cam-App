@@ -1,5 +1,6 @@
 """Camera setup UI states without hardware, installation or network access."""
 import os
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -53,7 +54,7 @@ class CameraSetupTests(unittest.TestCase):
              patch.object(CameraController, "available", return_value=False):
             self.window.camera_install_message(0, "Approve in System Settings.")
         self.assertFalse(self.window.camera_settings.isHidden())
-        self.assertIn("approval", self.window.camera_status.text())
+        self.assertIn("setup" if sys.platform == "win32" else "approval", self.window.camera_status.text())
         with patch("app.controller_path", return_value="bridge"), \
              patch.object(CameraController, "available", return_value=True):
             self.window.camera_install_message(1, "Installation completed.")
@@ -65,7 +66,7 @@ class CameraSetupTests(unittest.TestCase):
         with patch("app.QDesktopServices.openUrl", return_value=True) as open_url, \
              patch.object(CameraController, "install") as install:
             self.window.open_camera_settings()
-        self.assertIn("LoginItems-Settings", open_url.call_args.args[0].toString())
+        self.assertIn("privacy-webcam" if sys.platform == "win32" else "LoginItems-Settings", open_url.call_args.args[0].toString())
         install.assert_not_called()
 
     def test_discovery_failure_does_not_leave_a_false_ready_state(self):

@@ -433,6 +433,10 @@ class MainWindow(QMainWindow):
         self.camera_settings.setVisible(False)
         self.camera_settings.clicked.connect(self.open_camera_settings)
         layout.addWidget(self.camera_settings)
+        self.camera_remove = QPushButton("Uninstall camera…")
+        self.camera_remove.setVisible(False)
+        self.camera_remove.clicked.connect(self.uninstall_camera_extension)
+        layout.addWidget(self.camera_remove)
         self.copy_obs = QPushButton("Copy OBS stream URL")
         self.copy_obs.setObjectName("primary")
         self.copy_obs.clicked.connect(self.copy_obs_url)
@@ -1227,6 +1231,8 @@ class MainWindow(QMainWindow):
         changed = available != self.camera_available
         self.camera_available = available
         self.camera_install.setVisible(native and not available)
+        self.camera_remove.setVisible(available and sys.platform == "win32")
+        self.camera_remove.setEnabled(not self.camera_install_pending)
         self.camera_output.setEnabled(available or self.virtual_camera.running)
         if available:
             self.camera_status.setText("NoSub Camera · installed and ready")
@@ -1234,20 +1240,25 @@ class MainWindow(QMainWindow):
             if changed and not self.virtual_camera.running:
                 self.output_hint.setText("Enable camera output, then select NoSub Camera in your video app.")
         elif self.camera_install_pending:
-            self.camera_status.setText("Waiting for macOS approval")
+            self.camera_status.setText("Waiting for Windows setup" if sys.platform == "win32" else "Waiting for macOS approval")
         else:
             self.camera_status.setText("NoSub Camera · setup required" if native else
                                        "Native camera unavailable in this build")
             if native and changed and not self.virtual_camera.running:
-                self.output_hint.setText("Install NoSub Camera once. macOS may require approval in General > Login Items & Extensions > Camera Extensions.")
+                self.output_hint.setText("Install NoSub Camera once and approve the Windows administrator prompt."
+                                         if sys.platform == "win32" else
+                                         "Install NoSub Camera once. macOS may require approval in General > Login Items & Extensions > Camera Extensions.")
 
     def open_camera_settings(self):
-        QDesktopServices.openUrl(QUrl("x-apple.systempreferences:com.apple.LoginItems-Settings.extension"))
+        QDesktopServices.openUrl(QUrl("ms-settings:privacy-webcam" if sys.platform == "win32" else
+                                     "x-apple.systempreferences:com.apple.LoginItems-Settings.extension"))
 
     def install_camera_extension(self):
         if controller_path() is None or self.camera_install_pending:
             return
         answer = QMessageBox.question(self, "Install NoSub Camera",
+            "Install NoSub Camera for OBS-free output? Windows will ask for administrator approval to register its camera component."
+            if sys.platform == "win32" else
             "Install the NoSub Camera system extension? macOS may ask you to approve it in System Settings. OBS is not required.")
         if answer != QMessageBox.StandardButton.Yes:
             return
@@ -1258,9 +1269,28 @@ class MainWindow(QMainWindow):
         except Exception as error:
             self.camera_install_message(2, str(error))
 
+    def uninstall_camera_extension(self):
+        if sys.platform != "win32" or self.camera_install_pending:
+            return
+        answer = QMessageBox.question(self, "Uninstall NoSub Camera",
+            "Remove the Windows camera component? Close video apps first. Windows will ask for administrator approval. "
+            "Your pairing and camera presets will be kept.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        self.virtual_camera.stop()
+        self.camera_output.setText("Enable NoSub Camera")
+        self.camera_install_pending = True
+        self.camera_install.setEnabled(False)
+        self.camera_remove.setEnabled(False)
+        try:
+            self.camera_controller.uninstall()
+        except Exception as error:
+            self.camera_install_message(2, str(error))
+
     def camera_install_message(self, state, message):
         self.output_hint.setText(message)
-        self.camera_settings.setVisible(state == 0)
+        self.camera_settings.setVisible(state == 0 or (state == 2 and sys.platform == "win32"))
         if state != 0:
             self.camera_install_pending = False
             self.camera_install.setEnabled(True)
@@ -1281,7 +1311,7 @@ class MainWindow(QMainWindow):
     def request_quit(self):
         if self.camera_install_pending:
             self.restore_window()
-            self.output_hint.setText("Finish the macOS camera approval before quitting NoSub Studio.")
+            self.output_hint.setText("Finish camera setup before quitting NoSub Studio.")
             return
         self.shutdown()
         QApplication.instance().quit()
@@ -1303,7 +1333,7 @@ class MainWindow(QMainWindow):
             event.ignore()
             return
         if self.camera_install_pending:
-            self.output_hint.setText("Finish the macOS camera approval before closing NoSub Studio.")
+            self.output_hint.setText("Finish camera setup before closing NoSub Studio.")
             event.ignore()
             return
         self.shutdown()

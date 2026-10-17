@@ -112,9 +112,14 @@ Initial target: **Windows 11, build 22000+**, using Media Foundation's native
 `MFCreateVirtualCamera`. Windows 10 support is deferred. This needs a native COM
 media-source DLL and camera registration; a Python wrapper alone is insufficient.
 
-**Not implemented:** Windows media source, bridge, registration/unregistration,
-installer and hardware validation. The desktop UI does not claim Windows-native
-camera support. Build/validate on Windows before publishing an installer.
+An experimental x64 implementation now includes the Media Foundation source,
+memory-only frame bridge, elevated COM registration/removal helper, desktop UI,
+PyInstaller embedding and a Windows CI test-artifact workflow. It uses pinned
+MIT-licensed Microsoft source/allocator lifecycle code with NoSub-specific frame
+transport and a separate CLSID. See [Windows build/testing](windows/TESTING.md).
+Native compilation and physical Windows validation must pass before treating it
+as usable/release-ready. Authenticode signing and a product installer remain
+pending. Do not publish an unsigned prototype as a finished Windows download.
 
 ## References
 
