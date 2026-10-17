@@ -41,8 +41,14 @@ receiver listening after the window closed. Nine tray/lifecycle tests, ten camer
 bridge tests and one live-localhost background-stream test passed. Windows tray
 behavior is implemented in shared Qt code, but has not been tested on Windows.
 Streaming uses a scoped App Nap activity; normal system sleep is still allowed.
-See [native camera status](../../desktop/native/README.md). Windows 11 native
-implementation and platform download publication remain pending.
+See [native camera status](../../desktop/native/README.md). An experimental
+Windows 11 x64 native implementation and unsigned portable test package are now
+available in source/GitHub Actions. Windows CI passed 42 hardware-free tests,
+native NV12 pixel conversion and direct COM media-source activation, sample
+allocation/timing and black-fallback checks without installing a camera.
+Actual Windows UAC setup, iPhone-to-Frame-Server output and video-app
+interoperability still need the owner's Windows PC. Authenticode signing,
+product installer and public platform download publication remain pending.
 
 The installed Mac package also remembers its pairing identity in macOS Keychain
 (Windows uses Credential Locker). Explicit Reset pairing revokes the old key;

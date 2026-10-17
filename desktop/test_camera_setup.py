@@ -77,6 +77,27 @@ class CameraSetupTests(unittest.TestCase):
         self.assertFalse(self.window.camera_output.isEnabled())
         self.assertIn("could not be checked", self.window.camera_status.text())
 
+    def test_windows_uninstall_cancel_does_not_stop_output_or_request_uac(self):
+        with patch("app.sys.platform", "win32"), \
+             patch("app.QMessageBox.question", return_value=0), \
+             patch.object(self.window.virtual_camera, "stop") as stop, \
+             patch.object(self.window.camera_controller, "uninstall") as remove:
+            self.window.uninstall_camera_extension()
+        stop.assert_not_called()
+        remove.assert_not_called()
+
+    def test_windows_uninstall_disables_output_until_setup_finishes(self):
+        from PySide6.QtWidgets import QMessageBox
+        with patch("app.sys.platform", "win32"), \
+             patch("app.QMessageBox.question", return_value=QMessageBox.StandardButton.Yes), \
+             patch.object(self.window.virtual_camera, "stop") as stop, \
+             patch.object(self.window.camera_controller, "uninstall") as remove:
+            self.window.uninstall_camera_extension()
+        stop.assert_called_once()
+        remove.assert_called_once()
+        self.assertTrue(self.window.camera_install_pending)
+        self.assertFalse(self.window.camera_output.isEnabled())
+
 
 if __name__ == "__main__":
     unittest.main()

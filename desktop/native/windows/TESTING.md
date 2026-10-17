@@ -1,8 +1,10 @@
 # Windows 11 native camera — test build
 
 This is an **unsigned, experimental implementation**, not a verified public
-Windows release. Native Windows compilation and real camera interoperability
-must pass before publishing an installer. Do not disable Defender, SmartScreen,
+Windows release. Native compilation, 42 hardware-free Python checks, pixel
+conversion and direct COM media-source/frame checks passed on Windows CI without
+registering a camera. Actual Windows 11 installation and camera interoperability
+still need a physical test before publishing an installer. Do not disable Defender, SmartScreen,
 driver-signature enforcement, or camera privacy settings as a workaround.
 
 ## Requirements
