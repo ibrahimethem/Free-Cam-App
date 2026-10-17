@@ -9,6 +9,7 @@
 #include <atomic>
 #include <memory>
 #include <array>
+#include <future>
 
 using Microsoft::WRL::ComPtr;
 using Callback = void(__cdecl*)(int32_t, const char*);
@@ -44,19 +45,49 @@ struct Publisher {
     std::vector<uint8_t> latest = std::vector<uint8_t>(NoSub::FrameBytes);
     std::vector<uint8_t> scratch = std::vector<uint8_t>(NoSub::FrameBytes);
     ULONGLONG timestamp = 0;
+    bool enabled = false;
     std::wstring pipeName;
     PSECURITY_DESCRIPTOR security = nullptr;
     std::array<std::thread, 4> servers;
+    std::thread lifetime;
     ComPtr<IMFVirtualCamera> camera;
     bool com = false, mf = false;
 
     ~Publisher() {
+        if (stop) SetEvent(stop.get());
+        if (lifetime.joinable()) lifetime.join();
+    }
+
+    // Only the lifetime thread owns/releases COM/MF objects. Python frame
+    // workers are short-lived and change on each Enable/Disable cycle.
+    void Cleanup() {
         if (stop) SetEvent(stop.get());
         for (auto& thread : servers) if (thread.joinable()) thread.join();
         if (camera) { camera->Stop(); camera->Shutdown(); camera.Reset(); }
         if (security) LocalFree(security);
         if (mf) MFShutdown();
         if (com) CoUninitialize();
+    }
+
+    HRESULT Launch() {
+        auto started = std::make_shared<std::promise<HRESULT>>();
+        auto ready = started->get_future();
+        lifetime = std::thread([this, started] {
+            HRESULT result = E_FAIL;
+            try { result = Start(); } catch (...) { result = E_OUTOFMEMORY; }
+            started->set_value(result);
+            if (SUCCEEDED(result)) WaitForSingleObject(stop.get(), INFINITE);
+            Cleanup();
+        });
+        return ready.get();
+    }
+
+    void Enable(bool value) {
+        std::lock_guard lock(mutex);
+        enabled = value;
+        timestamp = 0;
+        NoSub::Black(latest.data());
+        NoSub::Black(scratch.data());
     }
 
     void Serve() {
@@ -90,7 +121,7 @@ struct Publisher {
                 if (!NoSub::Transfer(pipe.get(), &request, 1, false, stop.get()) || request != 1) break;
                 {
                     std::lock_guard lock(mutex);
-                    if (timestamp && GetTickCount64() - timestamp < 1000) frame = latest;
+                    if (enabled && timestamp && GetTickCount64() - timestamp < 1000) frame = latest;
                     else NoSub::Black(frame.data());
                 }
                 NoSub::Header header{NoSub::Magic, 1, NoSub::Width, NoSub::Height, DWORD(NoSub::FrameBytes), {}};
@@ -119,13 +150,19 @@ struct Publisher {
         pipeName = NoSub::PipePrefix;
         for (auto byte : random) { pipeName += L"0123456789abcdef"[byte >> 4]; pipeName += L"0123456789abcdef"[byte & 15]; }
         NoSub::Black(latest.data());
+#ifndef NOSUB_TRANSPORT_TEST
         hr = MFCreateVirtualCamera(MFVirtualCameraType_SoftwareCameraSource, MFVirtualCameraLifetime_Session,
             MFVirtualCameraAccess_CurrentUser, L"NoSub Camera", NoSub::SourceId, nullptr, 0, &camera);
         if (FAILED(hr)) return hr;
         hr = camera->SetString(NoSub::PipeAttribute, pipeName.c_str());
         if (FAILED(hr)) return hr;
+#endif
         for (auto& thread : servers) thread = std::thread([this] { Serve(); });
+#ifdef NOSUB_TRANSPORT_TEST
+        return S_OK; // Same real pipe/lifecycle, but never register a test device.
+#else
         return camera->Start(nullptr);
+#endif
     }
 };
 std::unique_ptr<Publisher> publisher;
@@ -166,18 +203,19 @@ extern "C" void __cdecl nosub_camera_request(int32_t install, Callback callback)
 
 extern "C" int32_t __cdecl nosub_camera_output_start() {
     std::lock_guard lock(publisherMutex);
-    if (publisher) return 1;
+    if (publisher) { publisher->Enable(true); return 1; }
     try {
         auto candidate = std::make_unique<Publisher>();
-        const HRESULT hr = candidate->Start();
+        const HRESULT hr = candidate->Launch();
         if (FAILED(hr)) return int32_t(hr);
+        candidate->Enable(true);
         publisher = std::move(candidate);
         return 1;
     } catch (...) { return int32_t(E_OUTOFMEMORY); }
 }
 extern "C" int32_t __cdecl nosub_camera_output_send(const void* data, int32_t length) {
     std::lock_guard lock(publisherMutex);
-    if (!publisher) return -1;
+    if (!publisher || !publisher->enabled) return -1;
     if (!data && !length) {
         std::lock_guard frameLock(publisher->mutex);
         publisher->timestamp = 0;
@@ -193,8 +231,20 @@ extern "C" int32_t __cdecl nosub_camera_output_send(const void* data, int32_t le
 }
 extern "C" void __cdecl nosub_camera_output_stop() {
     std::lock_guard lock(publisherMutex);
+    // Keep the same virtual device, activation attributes and pipe alive. Video
+    // apps may keep their media source cached while output is disabled. Replacing
+    // its random pipe on every toggle strands that source on a dead endpoint.
+    if (publisher) publisher->Enable(false);
+}
+extern "C" void __cdecl nosub_camera_output_shutdown() {
+    std::lock_guard lock(publisherMutex);
     publisher.reset();
 }
+#ifdef NOSUB_TRANSPORT_TEST
+extern "C" const wchar_t* nosub_camera_test_pipe() {
+    return publisher ? publisher->pipeName.c_str() : L"";
+}
+#endif
 extern "C" void __cdecl nosub_camera_activity(int32_t) {
     // Windows tray operation does not use App Nap. Do not alter power settings.
 }

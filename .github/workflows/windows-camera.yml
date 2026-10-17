@@ -36,6 +36,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & build/native-camera-windows/Release/NoSubSourceTests.exe (Resolve-Path build/native-camera-windows/Release/NoSubCamera.dll).Path
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & build/native-camera-windows/Release/NoSubRestartTests.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Copy-Item desktop/native/windows/TESTING.md dist/FreeCam/WINDOWS-TESTING.md
       - name: Verify bundled bridge (no device registration)
         env:

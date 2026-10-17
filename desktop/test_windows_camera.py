@@ -75,6 +75,25 @@ class WindowsCameraTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "Allow desktop apps"):
             NativeFrameWriter(controller)
 
+    def test_windows_shutdown_releases_persistent_device_but_writer_close_only_disables(self):
+        controller = CameraController()
+        library = MagicMock()
+        library.nosub_camera_output_start.return_value = 1
+        controller.library = library
+        writer = NativeFrameWriter(controller)
+        writer.close()
+        library.nosub_camera_output_stop.assert_called_once()
+        library.nosub_camera_output_shutdown.assert_not_called()
+        with self.windows():
+            controller.shutdown_output()
+        library.nosub_camera_output_shutdown.assert_called_once()
+
+    def test_shutdown_does_not_load_unused_native_library(self):
+        controller = CameraController()
+        with self.windows(), patch.object(controller, "load") as load:
+            controller.shutdown_output()
+        load.assert_not_called()
+
     def test_pinned_transform_fails_instead_of_silently_patching_unexpected_source(self):
         with self.assertRaises(ValueError):
             replace_once("unexpected", "expected block", "replacement")

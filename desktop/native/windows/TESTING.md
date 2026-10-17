@@ -29,7 +29,9 @@ driver-signature enforcement, or camera privacy settings as a workaround.
    change the firewall, or add a login/startup item. The normal app stays unelevated.
 5. Pair the iPhone over Wi-Fi or Direct USB and start streaming. Choose **Enable
    NoSub Camera** on desktop. A current-user/session-lifetime virtual camera is
-   created; it disappears when output/app stops. Windows may append
+   created and kept until the app quits or the component is uninstalled.
+   Disable clears its frame and sends black without replacing the device/pipe;
+   Enable resumes on the same connection, even with video apps left open. Windows may append
    “Windows Virtual Camera” to its display name.
 6. Open Windows Camera and a conferencing app; select **NoSub Camera**. Output
    is 1920×1080 NV12 at up to 30 FPS, letterboxed without cropping. 4K/60 native
@@ -44,6 +46,8 @@ security policy; use an approved/signed build rather than weakening protections.
 
 - Color/orientation: use a bright scene, verify no crop or flipped image.
 - Stop/restart output, switch USB/Wi-Fi, disconnect/reconnect the phone.
+- Keep the video app open and toggle Disable/Enable at least five times. The
+  original camera selection must resume without reselecting or restarting it.
 - Stop phone streaming: webcam must turn black within one second, not retain a
   private image. Quit desktop: virtual device must disappear.
 - Close desktop window: system tray, receiver and output must remain active.

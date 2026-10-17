@@ -6,4 +6,5 @@ EXPORTS
   nosub_camera_output_start
   nosub_camera_output_send
   nosub_camera_output_stop
+  nosub_camera_output_shutdown
   nosub_camera_activity

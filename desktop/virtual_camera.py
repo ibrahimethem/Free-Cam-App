@@ -54,6 +54,9 @@ class CameraController(QObject):
             library.nosub_camera_output_send.restype = ctypes.c_int32
             library.nosub_camera_output_stop.argtypes = []
             library.nosub_camera_output_stop.restype = None
+            if sys.platform == "win32":
+                library.nosub_camera_output_shutdown.argtypes = []
+                library.nosub_camera_output_shutdown.restype = None
             library.nosub_camera_activity.argtypes = [ctypes.c_int32]
             library.nosub_camera_activity.restype = None
             library.nosub_camera_available.argtypes = []
@@ -65,7 +68,14 @@ class CameraController(QObject):
         self.load().nosub_camera_request(1, self.callback)
 
     def uninstall(self):
+        self.shutdown_output()
         self.load().nosub_camera_request(0, self.callback)
+
+    def shutdown_output(self):
+        # Windows keeps one device/pipe for the app lifetime so consumers can
+        # survive output toggles. Release it only on real quit or uninstall.
+        if sys.platform == "win32" and self.library is not None:
+            self.library.nosub_camera_output_shutdown()
 
     def available(self):
         """Discovery only: never starts capture or requests installation/permission."""
@@ -132,8 +142,8 @@ class VirtualCamera:
         self.stop()
         if controller_path() is None:
             raise RuntimeError("Native camera requires the signed macOS release package or a built Windows 11 camera component.")
-        # Windows MF/COM must start and stop on the same MTA worker, never on
-        # the UI thread. A startup failure is surfaced via the existing error UI.
+        # Windows starts its native lifetime MTA off the UI thread. That native
+        # thread outlives frame workers/toggles; startup errors use the error UI.
         if sys.platform == "win32":
             writer = None
         else:

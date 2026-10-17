@@ -565,7 +565,12 @@ class MainWindow(QMainWindow):
         self.refresh()
 
     def stop_receiver(self):
-        self.virtual_camera.stop()
+        try:
+            self.virtual_camera.stop()
+        except RuntimeError as error:
+            # Webcam output must not hold the authenticated Wi-Fi receiver/port
+            # hostage if a native video consumer stalls during output teardown.
+            self.output_hint.setText(f"Camera output could not stop: {error}")
         self.camera_output.setText("Enable NoSub Camera")
         self.pending_preset = None
         self.usb_bridge.stop()
@@ -1205,7 +1210,8 @@ class MainWindow(QMainWindow):
         if self.virtual_camera.running:
             self.virtual_camera.stop()
             self.camera_output.setText("Enable NoSub Camera")
-            self.output_hint.setText("NoSub Camera output disabled.")
+            self.output_hint.setText("NoSub Camera output disabled · video apps receive black until enabled again."
+                                     if sys.platform == "win32" else "NoSub Camera output disabled.")
             return
         if not self.relay:
             self.output_hint.setText("Start the receiver before enabling camera output.")
@@ -1326,6 +1332,7 @@ class MainWindow(QMainWindow):
         self.camera_status_timer.stop()
         self.stop_receiver()
         self.camera_controller.set_streaming_activity(False)
+        self.camera_controller.shutdown_output()
         self.background.close()
 
     def closeEvent(self, event):

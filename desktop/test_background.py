@@ -1,5 +1,7 @@
 """Lifecycle tests without registering real tray icons or opening network sockets."""
 import os
+import threading
+from types import SimpleNamespace
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -95,6 +97,19 @@ class BackgroundTests(unittest.TestCase):
         self.assertTrue(event.isAccepted())
         self.assertTrue(self.window.shutdown_complete)
         self.assertTrue(APP.quitOnLastWindowClosed())
+
+    def test_native_output_stop_failure_still_closes_wifi_receiver(self):
+        relay = SimpleNamespace(changed=threading.Condition(), token="test", accept_phone=True,
+                                frame=b"private-frame", shutdown=MagicMock(), server_close=MagicMock())
+        self.window.relay = relay
+        with patch.object(self.window.virtual_camera, "stop", side_effect=RuntimeError("Output still stopping")), \
+             patch.object(self.window, "refresh"):
+            self.window.stop_receiver()
+        relay.shutdown.assert_called_once()
+        relay.server_close.assert_called_once()
+        self.assertIsNone(self.window.relay)
+        self.assertIsNone(relay.frame)
+        self.assertFalse(relay.accept_phone)
 
     def test_windows_tray_click_opens_window(self):
         self.window.close()
