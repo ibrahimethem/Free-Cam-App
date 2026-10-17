@@ -78,6 +78,14 @@ a PFX/password/service token. Do not disable Windows security to test packages.
 Only then publish versioned GitHub Release assets from one reviewed source
 commit and update website downloads. Do not auto-submit iOS App Review.
 
+Website activation: `site/download/releases.json` holds the version and a
+`published` flag for each desktop platform. Only set a flag to true after the
+corresponding signed asset and `.sha256` exist in public release `v<version>`.
+The download page constructs the filenames used above; Windows must use the
+production `NoSub-Studio-<version>-Windows-x64-Setup.exe`, never a TEST artifact.
+Commit/push the config to deploy Pages. Until then the page shows Coming soon;
+its Releases link stays usable without linking to nonexistent package files.
+
 Native camera implementation notes: [desktop/native/README.md](../desktop/native/README.md).
 Physical test checklist: [DEVELOPMENT.md](DEVELOPMENT.md). Publish only after
 acceptance, using a reviewed source tag and explicit platform/architecture labels.
