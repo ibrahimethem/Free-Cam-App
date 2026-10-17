@@ -134,6 +134,30 @@ class DesktopTests(unittest.TestCase):
         self.window.groups["exposure"].submit()
         self.assertEqual(self.window.relay.settings["iso"], 400)
 
+    def test_virtual_camera_toggles_do_not_restart_or_block_wifi_receiver(self):
+        image = QImage(16, 9, QImage.Format_RGB32)
+        image.fill(QColor("red"))
+        data = QByteArray()
+        buffer = QBuffer(data)
+        buffer.open(QIODevice.WriteOnly)
+        image.save(buffer, "JPEG")
+        relay, key = self.window.relay, self.window.relay.token
+        writer = MagicMock()
+        with patch("virtual_camera.controller_path", return_value="native-library"), \
+             patch("virtual_camera.NativeFrameWriter", return_value=writer):
+            for cycle in range(3):
+                self.window.toggle_camera_output()
+                self.assertTrue(self.window.virtual_camera.running)
+                self.assertEqual(self.post("/frame", bytes(data), "image/jpeg")[0], 204)
+                self.window.toggle_camera_output()
+                self.assertFalse(self.window.virtual_camera.running)
+                self.assertEqual(self.post("/frame", bytes(data), "image/jpeg")[0], 204)
+                self.assertIs(self.window.relay, relay)
+                self.assertEqual(relay.token, key)
+                self.assertTrue(relay.accept_phone)
+        self.assertEqual(relay.sequence, 6)
+        self.assertEqual(writer.close.call_count, 3)
+
     def test_usb_setup_only_appears_for_unavailable_windows_service(self):
         with patch.object(self.window.usb_bridge, "scan"):
             self.window.source.setCurrentIndex(self.window.source.findData("usb"))

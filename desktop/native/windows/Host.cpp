@@ -96,7 +96,12 @@ struct Publisher {
             NoSub::Handle pipe(CreateNamedPipeW(pipeName.c_str(), PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
                 PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,
                 4, DWORD(NoSub::FrameBytes + sizeof(NoSub::Header)), 16, 100, &sa));
-            if (!pipe) return;
+            if (!pipe) {
+                // Disconnected clients may briefly retain handles to old pipe
+                // instances. Do not permanently lose a server slot during retry.
+                if (WaitForSingleObject(stop.get(), 20) == WAIT_OBJECT_0) return;
+                continue;
+            }
             NoSub::Handle event(CreateEventW(nullptr, TRUE, FALSE, nullptr));
             if (!event) return;
             OVERLAPPED ov{}; ov.hEvent = event.get();
@@ -118,7 +123,9 @@ struct Publisher {
             std::vector<uint8_t> frame(NoSub::FrameBytes);
             while (WaitForSingleObject(stop.get(), 0) != WAIT_OBJECT_0) {
                 uint8_t request = 0;
-                if (!NoSub::Transfer(pipe.get(), &request, 1, false, stop.get()) || request != 1) break;
+                // A paused consumer is not a broken connection. This read can
+                // wait idle, but the stop event cancels it immediately on quit.
+                if (!NoSub::Transfer(pipe.get(), &request, 1, false, stop.get(), INFINITE) || request != 1) break;
                 {
                     std::lock_guard lock(mutex);
                     if (enabled && timestamp && GetTickCount64() - timestamp < 1000) frame = latest;

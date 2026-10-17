@@ -40,8 +40,8 @@ public:
 
 // Bounded overlapped I/O. Cancellation is drained before OVERLAPPED/event storage
 // is destroyed; neither a stopped host nor a malicious peer can hang shutdown.
-inline bool Transfer(HANDLE pipe, void* data, DWORD length, bool writing, HANDLE stop = nullptr) {
-    const ULONGLONG deadline = GetTickCount64() + 100;
+inline bool Transfer(HANDLE pipe, void* data, DWORD length, bool writing, HANDLE stop = nullptr, DWORD timeoutMs = 100) {
+    const ULONGLONG deadline = timeoutMs == INFINITE ? 0 : GetTickCount64() + timeoutMs;
     auto* cursor = static_cast<uint8_t*>(data);
     while (length) {
         Handle event(CreateEventW(nullptr, TRUE, FALSE, nullptr));
@@ -53,7 +53,7 @@ inline bool Transfer(HANDLE pipe, void* data, DWORD length, bool writing, HANDLE
         if (!ready) {
             if (GetLastError() != ERROR_IO_PENDING) return false;
             const ULONGLONG now = GetTickCount64();
-            const DWORD timeout = now >= deadline ? 0 : DWORD(deadline - now);
+            const DWORD timeout = timeoutMs == INFINITE ? INFINITE : now >= deadline ? 0 : DWORD(deadline - now);
             HANDLE events[] = {event.get(), stop};
             const DWORD wait = WaitForMultipleObjects(stop ? 2 : 1, events, FALSE, timeout);
             if (wait != WAIT_OBJECT_0) {
