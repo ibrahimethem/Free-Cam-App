@@ -33,7 +33,9 @@ def main():
     # Compiling on a Windows Server CI host is fine. Only runtime camera use
     # requires Windows 11; controller_path enforces that before loading the DLL.
     cmake = cmake_executable()
-    subprocess.run([cmake, "-S", str(HERE), "-B", str(args.output), "-G", "Visual Studio 17 2022", "-A", "x64",
+    # Let CMake select the installed Visual Studio generation (2022 or newer),
+    # rather than hardcoding an IDE that newer Windows runners no longer ship.
+    subprocess.run([cmake, "-S", str(HERE), "-B", str(args.output), "-A", "x64",
                     f"-DPython3_EXECUTABLE={sys.executable}"], check=True)
     subprocess.run([cmake, "--build", str(args.output), "--config", "Release", "--parallel"], check=True)
     print("Native camera compiled, NOT installed or signed. Use Install camera inside NoSub Studio for explicit UAC setup.")

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 project(NoSubCamera LANGUAGES CXX)
 if(NOT WIN32 OR NOT MSVC OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
-  message(FATAL_ERROR "Build on 64-bit Windows with Visual Studio 2022 and Windows 11 SDK")
+  message(FATAL_ERROR "Build on 64-bit Windows with Visual Studio 2022 or newer and Windows 11 SDK")
 endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")

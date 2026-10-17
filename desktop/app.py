@@ -1233,14 +1233,14 @@ class MainWindow(QMainWindow):
         self.camera_install.setVisible(native and not available)
         self.camera_remove.setVisible(available and sys.platform == "win32")
         self.camera_remove.setEnabled(not self.camera_install_pending)
-        self.camera_output.setEnabled(available or self.virtual_camera.running)
-        if available:
+        self.camera_output.setEnabled(not self.camera_install_pending and (available or self.virtual_camera.running))
+        if self.camera_install_pending:
+            self.camera_status.setText("Waiting for Windows setup" if sys.platform == "win32" else "Waiting for macOS approval")
+        elif available:
             self.camera_status.setText("NoSub Camera · installed and ready")
             self.camera_settings.setVisible(False)
             if changed and not self.virtual_camera.running:
                 self.output_hint.setText("Enable camera output, then select NoSub Camera in your video app.")
-        elif self.camera_install_pending:
-            self.camera_status.setText("Waiting for Windows setup" if sys.platform == "win32" else "Waiting for macOS approval")
         else:
             self.camera_status.setText("NoSub Camera · setup required" if native else
                                        "Native camera unavailable in this build")
@@ -1265,6 +1265,7 @@ class MainWindow(QMainWindow):
         try:
             self.camera_install_pending = True
             self.camera_install.setEnabled(False)
+            self.camera_output.setEnabled(False)
             self.camera_controller.install()
         except Exception as error:
             self.camera_install_message(2, str(error))
@@ -1283,6 +1284,7 @@ class MainWindow(QMainWindow):
         self.camera_install_pending = True
         self.camera_install.setEnabled(False)
         self.camera_remove.setEnabled(False)
+        self.camera_output.setEnabled(False)
         try:
             self.camera_controller.uninstall()
         except Exception as error:

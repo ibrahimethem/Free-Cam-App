@@ -64,7 +64,7 @@ void Uninstall() {
     }
     HKEY classes = nullptr;
     Check(RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Classes\\CLSID", 0,
-                       KEY_WRITE | KEY_WOW64_64KEY, &classes));
+                       DELETE | KEY_ENUMERATE_SUB_KEYS | KEY_QUERY_VALUE | KEY_SET_VALUE | KEY_WOW64_64KEY, &classes));
     const auto result = RegDeleteTreeW(classes, NoSub::SourceId);
     RegCloseKey(classes);
     if (result != ERROR_FILE_NOT_FOUND) Check(result);
