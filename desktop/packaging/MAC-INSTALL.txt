@@ -1,0 +1,20 @@
+NoSub Studio — Installation
+
+1. Quit any existing NoSub Studio from its menu-bar menu (or press Command-Q).
+   Closing the window keeps streaming in the background; it does not quit.
+2. Drag NoSub Studio to Applications. Replace the previous app when upgrading.
+3. Eject this disk image and open NoSub Studio from Applications.
+4. Install NoSub Camera in the app, then allow the camera extension in macOS
+   System Settings when prompted. This is a one-time system approval.
+5. Connect NoSub Cam on your iPhone by scanning the desktop pairing QR code.
+   Select NoSub Camera in your preferred video app and enable webcam output.
+
+Apple Silicon Mac, macOS 14.4 or later. Native webcam output: 1080p30.
+For Wi-Fi, allow local-network access when prompted. For USB, unlock and trust
+the iPhone when asked. No accounts or cloud video relay are used.
+
+To remove: first use Remove camera in NoSub Studio and approve the macOS
+extension removal, then Quit and move the application to the Trash. Presets and
+secure pairing are preserved. Reset pairing in the app first to revoke the key.
+
+Privacy and support: https://nosubcam.ethemkarali.com

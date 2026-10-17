@@ -1,0 +1,25 @@
+NoSub Studio
+
+Use your iPhone as a webcam, without a subscription or OBS.
+Requires Windows 11 (64-bit x64) and NoSub Cam on your iPhone.
+
+Setup installs NoSub Studio, a Start menu shortcut and an uninstaller.
+The recommended installation also registers NoSub Camera for video apps.
+Administrator approval is needed for the Program Files installation and camera.
+The desktop application itself runs without administrator privileges.
+
+Before upgrading or removing: choose Quit NoSub Studio from the notification
+area menu, and close video apps using NoSub Camera. Closing the main window
+only hides it. Do not interrupt an active camera session to update.
+
+Wi-Fi: allow the receiver through Windows Firewall on private networks only
+when Windows asks. Setup does not add firewall exceptions or startup tasks.
+USB: Apple Devices and Apple's USB service are separate prerequisites; the
+application guides you through installing them if needed.
+
+Uninstall through Windows Settings > Apps > Installed apps. Presets and secure
+pairing credentials are preserved. Use Reset pairing in the app to revoke a key.
+NoSub Camera is removed when uninstalling a full installation.
+
+Privacy and support: https://nosubcam.ethemkarali.com
+No accounts, subscriptions or cloud video relay.

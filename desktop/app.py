@@ -222,18 +222,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("NoSub Studio" + (" — Demo" if demo else ""))
         self.resize(1400, 900)
         self.setMinimumSize(1060, 690)
-        icon = QPixmap(64, 64)
-        icon.fill(Qt.GlobalColor.transparent)
-        from PySide6.QtGui import QPainter, QColor, QFont
-        painter = QPainter(icon)
-        painter.setBrush(QColor(COLORS["accent"]))
-        painter.setPen(Qt.NoPen)
-        painter.drawRoundedRect(0, 0, 64, 64, 4, 4)
-        painter.setPen(QColor(COLORS["input"]))
-        painter.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))
-        painter.drawText(icon.rect(), Qt.AlignCenter, "F")
-        painter.end()
-        self.setWindowIcon(QIcon(icon))
+        from branding import runtime_icon
+        self.setWindowIcon(QIcon(str(runtime_icon())))
         self.build_ui()
         self.timer = QTimer(self)
         self.timer.setInterval(40)
@@ -1382,6 +1372,8 @@ def main():
             instance = SingleInstance(app)
             if not instance.acquire():
                 return 0
+            from single_instance import hold_installer_guard
+            app.installer_guard = hold_installer_guard()
         except RuntimeError as error:
             QMessageBox.warning(None, "NoSub Studio is already running", str(error))
             return 1

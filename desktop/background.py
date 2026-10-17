@@ -7,6 +7,9 @@ from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 
 def camera_icon():
+    if sys.platform == "win32":
+        from branding import runtime_icon
+        return QIcon(str(runtime_icon()))
     picture = QPixmap(44, 44)
     picture.fill(Qt.GlobalColor.transparent)
     painter = QPainter(picture)

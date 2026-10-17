@@ -171,3 +171,21 @@ class SingleInstance(QObject):
 
 def needs_single_instance(demo=False, screenshot=None):
     return not demo and screenshot is None
+
+
+def hold_installer_guard():
+    """Hold a Windows installer mutex until process exit, including tray mode.
+
+    This is not the per-user singleton lock. Inno uses it only to prevent an
+    install/uninstall from modifying an active receiver's files.
+    """
+    if sys.platform != "win32":
+        return None
+    library = ctypes.WinDLL("kernel32", use_last_error=True)
+    library.CreateMutexW.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_wchar_p]
+    library.CreateMutexW.restype = ctypes.c_void_p
+    handle = library.CreateMutexW(None, False, "NoSubStudio.Desktop.InstallGuard")
+    if not handle:
+        raise RuntimeError("NoSub Studio could not protect its running installation.")
+    # Intentionally retained until Windows closes handles on process exit.
+    return handle

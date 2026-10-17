@@ -1,46 +1,83 @@
 # Build outputs and releases
 
-For the native virtual camera implementation and remaining release requirements,
-see [desktop/native/README.md](../desktop/native/README.md). Windows initially
-targets Windows 11; native camera packages are not release-ready yet.
+## Installer commands (current)
 
-Keep source code in Git and publish executables/installers as GitHub Release
-assets. Use one source tag for all platforms. Do not commit signing credentials.
+The desktop product is **NoSub Studio**; the phone app is **NoSub Cam**. Both
+use the existing product artwork. `desktop/VERSION` controls desktop versions.
+Build outputs, credentials and certificates must never be committed.
 
-## Current packages
+### macOS
+
+Install `desktop/requirements-build.txt`, then use the existing local Developer
+ID certificate and provisioning profile (private key stays in Keychain):
 
 ```sh
-python -m pip install -r desktop/requirements-build.txt
-python desktop/build.py
+NOSUB_CODESIGN_IDENTITY=<certificate-sha1> python desktop/build.py --native-camera
+python desktop/native/macos/release.py --identity <certificate-sha1>
+bundle exec ruby fastlane/mac_notarize.rb
+python desktop/packaging/package_macos.py --identity <certificate-sha1>
+bundle exec ruby fastlane/mac_notarize.rb --dmg dist/installers/NoSub-Studio-1.0.0-macOS-Apple-Silicon.dmg
 ```
 
-| Build host | Output | Status |
-| --- | --- | --- |
-| Windows | `dist/FreeCam/FreeCam.exe` and runtime folder | Portable prototype, smoke-tested |
-| macOS | `dist/FreeCam.app` | Mac build and validation pending |
-| Mac/Xcode | iOS app from `ios/project.yml` | Compilation and device validation pending |
+The DMG builder verifies the app signature, stapled ticket, version and main
+executable architecture. It supplies a styled drag-to-Applications window,
+product icon, instructions and Developer ID signature. Notarize/staple the
+outer DMG too; its SHA-256 sidecar is regenerated after stapling.
 
-Copy the entire Windows folder. End users do not need Python. Desktop outputs
-are unsigned development packages.
+Current target: **Apple Silicon, macOS 14.4+** (bundled Qt minimum). The camera extension is universal,
+but the Python/Qt runtime is not. Intel and minimum-OS runtime testing remain
+release gates. Quit the installed app before replacing it; closing the window
+only hides it. Removal: Remove camera in-app, approve removal, Quit, Trash app.
 
-## Planned installers
+### Windows 11 x64
 
-- Windows: use Inno Setup to create `FreeCam-Setup.exe`, shortcuts and an
-  uninstaller. Installer configuration is not implemented yet. Apple's USB
-  drivers are separate; the app guides users to Apple Devices when needed.
-- macOS: package the app in a DMG on Mac. Developer ID signing and notarization
-  remain to be configured for public distribution.
-- iOS: install through Xcode during development. TestFlight/App Store require
-  separate Apple distribution setup. GitHub stores source, not iPhone installs.
+Requires Visual Studio C++ tools, Windows 11 SDK, Python 3.13 x64 and Inno Setup
+6.4+ on the Windows builder. No installation/elevation happens during CI builds.
 
-## Release sequence
+```powershell
+python -m pip install -r desktop/requirements-build.txt
+python desktop/build.py --native-camera
+python desktop/packaging/package_windows.py --allow-unsigned
+```
 
-1. Run automated and physical checks in [DEVELOPMENT.md](DEVELOPMENT.md).
-2. Commit changes and choose a version/tag, such as `v0.1.0` for the first
-   prototype. No release tag has been created yet.
-3. Build on Windows and Mac from the same source tag.
-4. Test installation, launch, connections, upgrades and removal as applicable.
-5. Upload packages to a GitHub Release with platform/architecture labels,
-   checksums and known limitations. Mark prototypes as prereleases.
+Installer and checksum appear in `dist/installers/`. CI uploads the portable app
+and installer as separate **test artifacts**, not public Releases. Downloading
+artifacts requires GitHub sign-in.
 
-CI and automatic release publishing are not configured in this initial repo.
+The installer provides administrator-approved Program Files installation, a
+Start menu shortcut, optional desktop shortcut, optional native camera, product
+icons/version metadata, stable upgrade identity and Windows Installed Apps
+uninstallation. The host is launched as the original non-elevated user. Camera
+DLL and Microsoft MIT notices go in the same protected location as in-app setup.
+Only owned files/registry values are removed; presets and secure pairing remain.
+No startup task, firewall exception, Apple driver or security bypass is added.
+
+Quit the app from its notification-area menu before upgrade/removal and close
+video apps holding the camera DLL. The installer checks an application mutex;
+old builds without that guard and other users' sessions must be quit manually.
+Apple Devices/USB drivers remain a separate user-controlled prerequisite.
+
+**Windows Authenticode signing is not configured.** Production mode refuses to
+create an unsigned release. Obtain a signing identity/service, then integrate
+signing of app, DLL, setup helper, uninstaller and outer installer. Never commit
+a PFX/password/service token. Do not disable Windows security to test packages.
+
+### Remaining publication gates
+
+- Clean install, first launch, camera approval/output, Wi-Fi/USB, background and
+  reopen, repeat install, upgrade with saved settings, uninstall on both OSes.
+- Standard-user Windows installation with UAC; full and receiver-only choices;
+  verify the host is non-elevated. Open video apps must not cause silent damage.
+- Inspect Finder/Explorer, Dock/taskbar and shortcut icons. Verify final package
+  signatures, tickets and download checksums.
+- Complete bundled dependency license/source-offer audit (Qt/PySide, FFmpeg,
+  Python and transitive packages). Microsoft notices alone are not a complete
+  desktop distribution compliance audit.
+- Review support/legal pages, requirements, release notes and download URLs.
+
+Only then publish versioned GitHub Release assets from one reviewed source
+commit and update website downloads. Do not auto-submit iOS App Review.
+
+Native camera implementation notes: [desktop/native/README.md](../desktop/native/README.md).
+Physical test checklist: [DEVELOPMENT.md](DEVELOPMENT.md). Publish only after
+acceptance, using a reviewed source tag and explicit platform/architecture labels.

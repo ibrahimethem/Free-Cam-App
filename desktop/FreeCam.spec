@@ -4,12 +4,14 @@ import os
 import sys
 
 root = Path(SPECPATH).parent
+version = (root / 'desktop/VERSION').read_text().strip()
+brand = root / 'build/branding'
 signing_identity = os.environ.get('NOSUB_CODESIGN_IDENTITY') or None
 credential_backend = ('keyring.backends.macOS' if sys.platform == 'darwin'
                       else 'keyring.backends.Windows' if sys.platform == 'win32' else None)
 windows_camera = root / 'build' / 'native-camera-windows'
 camera_binaries = []
-camera_data = []
+camera_data = [(str(root / 'ios/FreeCam/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png'), 'assets')]
 if sys.platform == 'win32' and (windows_camera / 'Release' / 'NoSubCamera.dll').is_file():
     for name in ('NoSubCamera.dll', 'NoSubCameraSetup.exe'):
         path = windows_camera / 'Release' / name
@@ -32,15 +34,21 @@ if sys.platform == 'win32':
                   if Path(entry[0]).name.lower() not in ('icuuc.dll', 'icudt78.dll')]
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name='FreeCam',
+          icon=str(brand / 'NoSubStudio.ico') if sys.platform == 'win32' else None,
+          version=str(brand / 'windows-version.txt') if sys.platform == 'win32' else None,
           codesign_identity=signing_identity,
           debug=False, bootloader_ignore_signals=False, strip=False,
           upx=False, console=False, disable_windowed_traceback=False)
 coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='FreeCam')
 if sys.platform == 'darwin':
-    app = BUNDLE(coll, name='FreeCam.app', icon=None,
+    app = BUNDLE(coll, name='FreeCam.app', icon=str(brand / 'NoSubStudio.icns'),
                  bundle_identifier='com.ethem.nosubcam.desktop',
                  codesign_identity=signing_identity,
                  info_plist={'CFBundleDisplayName': 'NoSub Studio',
+                             'CFBundleName': 'NoSub Studio',
+                             'CFBundleShortVersionString': version,
+                             'CFBundleVersion': version,
+                             'LSMinimumSystemVersion': '14.4',
                              'NSCameraUsageDescription': 'NoSub Studio previews the camera you select, including your iPhone through Continuity Camera.',
                              'NSCameraUseContinuityCameraDeviceType': True,
                              'NSSystemExtensionUsageDescription':

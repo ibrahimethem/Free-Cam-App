@@ -3,7 +3,7 @@
 A subscription-free prototype for using an iPhone camera on Windows and macOS.
 The native iOS app sends JPEG frames over Wi-Fi or direct USB to a standalone
 desktop receiver. Signed Mac builds expose NoSub Camera directly; OBS remains
-an optional output path (and is currently required on Windows). No account,
+an optional output path. Windows 11 x64 also has native webcam output. No account,
 cloud relay, or paid service is used by the code.
 
 ## Repository and development
@@ -46,7 +46,9 @@ and previews are excluded from Git. Executables belong in GitHub Releases.
   OBS/MJPEG output is still available on both platforms.
 - Direct USB transport without Personal Hotspot, using the host Apple USB service; physical device validation is pending.
 - Optional macOS camera input for Continuity Camera, with camera selection and permission handling; Mac validation is pending.
-- No audio, automatic Wi-Fi discovery, installer, or background capture yet.
+- Mac DMG and Windows installer build commands: [release packaging](docs/RELEASING.md).
+  Windows installer signing and clean-install acceptance remain publication gates.
+- No audio, automatic Wi-Fi discovery, or iOS background capture yet.
 
 ## Run the standalone desktop app
 

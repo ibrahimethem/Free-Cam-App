@@ -1,0 +1,42 @@
+"""Create a Windows 11 x64 installer. No install, publish or credential import."""
+import argparse
+import hashlib
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--allow-unsigned', action='store_true', help='Explicit TEST installer; not a production release')
+    args = parser.parse_args()
+    if sys.platform != 'win32':
+        parser.error('Compile on Windows using Inno Setup 6.4 or newer')
+    compiler = shutil.which('ISCC.exe') or str(Path(os.environ.get('ProgramFiles(x86)', 'C:/Program Files (x86)')) / 'Inno Setup 6/ISCC.exe')
+    if not Path(compiler).is_file():
+        parser.error('Install Inno Setup 6.4 or newer first')
+    if not args.allow_unsigned:
+        # A production signing pipeline must be configured before release. Never
+        # silently label an unsigned executable as a finished public release.
+        parser.error('Windows Authenticode signing is not configured. Use --allow-unsigned for testing only.')
+    for file in ('dist/FreeCam/FreeCam.exe', 'build/branding/NoSubStudio.ico',
+                 'build/native-camera-windows/Release/NoSubCamera.dll'):
+        if not (ROOT / file).is_file():
+            parser.error('Run python desktop/build.py --native-camera first: missing ' + file)
+    version = (ROOT / 'desktop/VERSION').read_text().strip()
+    name = f'NoSub-Studio-{version}-Windows-x64-TEST-Setup'
+    subprocess.run([compiler, f'/DProductVersion={version}', f'/DRepoRoot={ROOT}',
+                    f'/DPackageName={name}', str(ROOT / 'desktop/packaging/windows.iss')], check=True)
+    output = ROOT / 'dist/installers' / (name + '.exe')
+    with output.open('rb') as stream:
+        digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+    output.with_suffix('.exe.sha256').write_text(f'{digest}  {output.name}\n', encoding='utf-8')
+    print('Unsigned TEST installer created; do not disable Windows security to run it:', output)
+
+
+if __name__ == '__main__':
+    main()
