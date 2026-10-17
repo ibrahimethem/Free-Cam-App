@@ -37,6 +37,16 @@ jobs:
           & build/native-camera-windows/Release/NoSubSourceTests.exe (Resolve-Path build/native-camera-windows/Release/NoSubCamera.dll).Path
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Copy-Item desktop/native/windows/TESTING.md dist/FreeCam/WINDOWS-TESTING.md
+      - name: Verify bundled bridge (no device registration)
+        env:
+          PYTHONPATH: desktop
+        run: >-
+          python -c "import sys; from pathlib import Path; sys.frozen = True;
+          sys._MEIPASS = str(Path('dist/FreeCam/_internal').resolve());
+          from virtual_camera import CameraController, controller_path;
+          assert controller_path() is not None;
+          controller = CameraController(); controller.load();
+          print('Packaged native bridge and C ABI loaded; no camera installed')"
       - name: Upload unsigned test package (not a public release)
         uses: actions/upload-artifact@v4
         with:

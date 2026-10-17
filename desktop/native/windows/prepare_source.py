@@ -26,6 +26,7 @@ def transform(name, text):
         for header in ("EventHandler.h", "HWMediaSource.h", "HWMediaStream.h", "AugmentedMediaSource.h", "AugmentedMediaStream.h"):
             text = replace_once(text, f'#include "{header}"', "")
         text = '#include "Common.h"\n#include <strsafe.h>\n' + text
+        text = replace_once(text, '#include "winrt\\Windows.ApplicationModel.h"', "")
     if name == "VirtualCameraMediaSourceActivate.h":
         text = "\n".join(line for line in text.splitlines()
                          if "m_spHWMediaSrc;" not in line and "m_spAugmentedMediaSrc;" not in line)
@@ -56,6 +57,15 @@ def transform(name, text):
 
 ''' + text[end:]
     if name == "SimpleMediaSource.cpp":
+        # NoSub is a Win32 host, not the sample's UWP configuration app. Do not
+        # query the Frame Server process's package identity or advertise a 60 FPS
+        # sensor profile when this source only supplies 1080p30.
+        start = text.index("        // High Frame Rate profile")
+        end = text.index("        // Se the profile collection", start)
+        text = text[:start] + text[end:]
+        start = text.index("        // The MF_VIRTUALCAMERA_CONFIGURATION_APP_PACKAGE_FAMILY_NAME")
+        end = text.index("        return S_OK;", start)
+        text = text[:start] + text[end:]
         text = replace_once(text,
             "RETURN_IF_FAILED(m_streamList[i]->Initialize(this, i, MFSampleAllocatorUsage_UsesProvidedAllocator));",
             '''RETURN_IF_FAILED(m_streamList[i]->Initialize(this, i, MFSampleAllocatorUsage_UsesProvidedAllocator));
