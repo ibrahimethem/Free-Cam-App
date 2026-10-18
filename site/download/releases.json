@@ -1,5 +1,5 @@
 {
   "version": "1.0.0",
   "macos": { "published": true },
-  "windows": { "published": false, "beta": { "published": false, "number": 1 } }
+  "windows": { "published": false, "beta": { "published": true, "number": 1 } }
 }

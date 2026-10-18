@@ -44,6 +44,14 @@ Reference: https://learn.microsoft.com/en-us/windows/apps/publish/faq/get-starte
 
 ## Fallback: explicitly unsigned public beta
 
+Published October 18, 2026:
+https://github.com/ibrahimethem/Free-Cam-App/releases/tag/v1.0.0-windows-beta.1
+CI `39158635643` passed 71 Python tests, native tests, package startup, product
+icon and native inventory checks. Windows notices and corresponding sources
+are included. This exact installer still needs physical clean-install/upgrade/
+uninstall and video-app testing; no such new test is claimed by CI. The signed
+production flag remains false; the website uses a separately labeled beta flag.
+
 The owner accepts an unsigned public beta as the fallback. Preserve the existing
 working native camera and EXE installer rather than replace it with an unproven
 MSIX. Before publication:

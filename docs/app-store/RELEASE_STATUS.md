@@ -86,17 +86,34 @@ Since then the owner has tested Windows, the installer has been implemented, and
 iOS build 2 has been uploaded and submitted as stated above. The original build 1
 and earlier pending-upload statements do not describe the current submission.
 
-**Windows public download stays disabled.** The owner reports that SignPath
+**Windows signed-production download stays disabled; unsigned public beta 1 is
+published separately:**
+https://github.com/ibrahimethem/Free-Cam-App/releases/tag/v1.0.0-windows-beta.1
+
+CI run `39158635643` built source `f0906628c497fba142cb6063d8bc5ce57b9022ce`.
+71 Python regression tests, native conversion/activation/restart checks, bridge
+loading, native-file inventory and embedded product-icon verification passed.
+Packaged offscreen demo startup passed (simulated, not physical camera proof).
+Windows runtime notices, corresponding source archive and a 60-native-file hash
+report accompany this beta. Published sizes/digests match local outputs; the
+anonymous installer URL returns HTTP 200. Checksum sidecars were normalized to
+LF on the release host without modifying the installer/source archives.
+The signed Mac release remains latest stable. No installed Mac app was replaced:
+the public Mac bundle icon matches the mobile artwork; the legacy installed
+development app still has PyInstaller's template icon/version `0.0.0`.
+
+The owner reports that SignPath
 Foundation declined the initial application due to insufficient established
 usage/reputation history. Approval is not pending. Store/MSIX assessment found
 that the current native camera needs a separate system-wide COM installation;
 a self-contained Store-signed solution is not yet demonstrated. The owner accepts
-an unsigned public beta as fallback; its Windows dependency audit and publication
-checks remain outstanding. See [Windows Store assessment](../WINDOWS-STORE.md).
+an unsigned public beta as fallback. A clean physical Windows install/upgrade/
+uninstall and video-app test of this exact beta is not claimed completed.
+See [Windows Store assessment](../WINDOWS-STORE.md).
 The protected `windows-signing` environment
 is main-only with owner review. No signing API token has been installed. Windows
-runtime license audit and complete production installer/uninstaller signing
-remain separate gates; unsigned Actions artifacts are not signed public releases.
+complete production installer/uninstaller signing remains a separate gate;
+unsigned beta/Actions artifacts are not signed production releases.
 
 ## Local-only release files
 

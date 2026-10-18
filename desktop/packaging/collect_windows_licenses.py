@@ -127,7 +127,7 @@ def main():
             target.write(archive, archive.name)
         target.write(output / 'inventory.json', 'inventory.json')
         target.write(output / 'WINDOWS-SOURCES.md', 'README.md')
-    bundle.with_suffix('.zip.sha256').write_text(f'{digest(bundle)}  {bundle.name}\n', encoding='utf-8')
+    bundle.with_suffix('.zip.sha256').write_text(f'{digest(bundle)}  {bundle.name}\n', encoding='utf-8', newline='\n')
     print('Windows notices and matching source asset prepared.', flush=True)
 
 

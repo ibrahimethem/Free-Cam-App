@@ -75,7 +75,7 @@ def main():
     output = ROOT / 'dist/installers' / (name + '.exe')
     with output.open('rb') as stream:
         digest = hashlib.file_digest(stream, 'sha256').hexdigest()
-    output.with_suffix('.exe.sha256').write_text(f'{digest}  {output.name}\n', encoding='utf-8')
+    output.with_suffix('.exe.sha256').write_text(f'{digest}  {output.name}\n', encoding='utf-8', newline='\n')
     print('Unsigned ' + ('PUBLIC BETA' if args.public_beta else 'TEST') +
           ' installer created; do not disable Windows security to run it:', output)
 

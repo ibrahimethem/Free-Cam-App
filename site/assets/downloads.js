@@ -1,6 +1,8 @@
 /* Local release configuration only: no analytics or third-party API requests.
  * Enable a platform in download/releases.json only after its signed release
  * asset AND checksum have been published and verified on GitHub Releases.
+ * The separate windows.beta flag is explicitly unsigned and must keep that
+ * warning visible; it never enables the signed Windows production flag.
  */
 (async () => {
   try {

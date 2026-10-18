@@ -4,6 +4,9 @@ Free Windows desktop companion for NoSub Cam on iPhone, including native webcam
 output without OBS. **This is an unsigned beta, not a signed production release
 or a Microsoft Store package.** Requires Windows 11 x64 and the iPhone app.
 Windows ARM64/Windows 10 are not supported by this package.
+Access to NoSub Cam on iPhone is distributed separately; this desktop download
+does not grant TestFlight access or replace the iOS app. If you do not yet have
+the iPhone app, wait for its availability before expecting a live camera feed.
 
 ## Download and install
 
