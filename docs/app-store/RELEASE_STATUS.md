@@ -1,11 +1,11 @@
 # NoSub Cam release status
 
-Updated: October 17, 2026 (Europe/Istanbul).
+Updated: October 18, 2026 (Europe/Istanbul).
 
 ## App Store Connect
 
 - App: NoSub Cam, Apple ID `6823797679`, bundle ID `com.ethem.nosubcam`.
-- iOS version `1.0.0`, build `1`, uploaded successfully and selected for review.
+- iOS version `1.0.0`, build `2`, processed/valid and selected for review.
 - English metadata, review instructions, and private review contact uploaded.
 - Three iPhone screenshots for each of the medium and large Dynamic Island sizes uploaded with Fastlane.
 - Privacy Policy URL configured; Data Not Collected declaration published with owner approval.
@@ -13,14 +13,34 @@ Updated: October 17, 2026 (Europe/Istanbul).
 - Content rights configured as no third-party content. Standard Apple EULA.
 - Free pricing configured. Availability: 174 storefronts, excluding China mainland,
   with explicit owner approval. Future storefronts are not automatically enabled.
-- Release option: manual. Review has **not** been submitted.
+- Release option: **manual**, preserved. Approval does not automatically publish the app.
+- App Store Review: **WAITING_FOR_REVIEW**, submitted October 18.
+- TestFlight Beta App Review: **WAITING_FOR_BETA_REVIEW**, submitted October 18.
+- Friends & Family external group includes build 2, public link enabled, limit 10:
+  https://testflight.apple.com/join/kfnGFXRK. Installation depends on Apple approval.
+- Both review instructions now include the public notarized Mac DMG and Wi-Fi/QR
+  pairing steps. Other existing TestFlight groups were not modified.
 - Fastlane metadata precheck completed successfully.
 
-## Required before review submission
+## Public Mac download and current validation
 
-The desktop companion download page currently contains preparation notices rather
-than an installable companion download. Publish an accessible desktop package and
-verify its download/install flow so App Review can test the iPhone app.
+Public release: https://github.com/ibrahimethem/Free-Cam-App/releases/tag/v1.0.0
+
+Website: https://ibrahimethem.github.io/Free-Cam-App/download/
+
+The signed/notarized app and drag-to-Applications DMG are stapled and accepted by
+Gatekeeper. Target: **Apple Silicon, macOS 14.4+**; no Intel package. Published
+asset sizes and SHA-256 digests match local outputs; anonymous download URLs
+return HTTP 200. GitHub Pages deployed successfully; only Mac downloads are active.
+
+Runtime notices and modification/rebuild instructions are embedded in the app.
+Matching Qt/PySide/Shiboken sources and checksum are release assets. Unused Qt
+Virtual Keyboard, QML/Quick, FFmpeg and Pillow are excluded. 66 hardware-free
+regression tests passed; bundled Qt/AVFoundation/native bridge linkage passed.
+The installed app was not replaced/relaunched during this packaging pass. No
+new physical streaming or clean minimum-macOS installation test was performed.
+
+## Earlier installation and implementation checks (historical)
 
 Developer ID Application identity was created with owner approval; its private
 key remains in local Keychain. NoSub Mac host/extension identifiers and an active
@@ -61,9 +81,16 @@ unchanged. The updated local privacy-policy copies must be published alongside
 the remembered-pairing release. Wi-Fi address changes still require updating the
 address or scanning a new QR code; automatic rediscovery is not implemented.
 
-No GitHub release, DMG publication, source push, or App Review submission was
-performed during this Mac installation. The desktop website still needs real
-download links before the iOS review is submitted.
+The installation notes above describe earlier checks, not current release gates.
+Since then the owner has tested Windows, the installer has been implemented, and
+iOS build 2 has been uploaded and submitted as stated above. The original build 1
+and earlier pending-upload statements do not describe the current submission.
+
+**Windows public download stays disabled.** SignPath Foundation application is
+submitted and approval is pending. The protected `windows-signing` environment
+is main-only with owner review. No signing API token has been installed. Windows
+runtime license audit and complete production installer/uninstaller signing
+remain separate gates; unsigned Actions artifacts are not signed public releases.
 
 ## Local-only release files
 
@@ -78,9 +105,14 @@ No private configuration, signing material, or review phone belongs in Git.
 
 ```sh
 bundle exec fastlane ios store_assets screenshots:false
-bundle exec fastlane ios select_review_build build_number:1
+bundle exec fastlane ios select_review_build build_number:2
 ```
 
 The latter selects an already processed build without submitting it to review.
 Pricing is configured in App Store Connect, not through Fastlane's obsolete
 `price_tier` API.
+
+The normal Fastlane upload lanes still do not auto-submit future versions. These
+two submissions were explicit owner-authorized operations through Fastlane's
+Spaceship API against the existing build; no new iOS build was created.
+Track review progress: https://appstoreconnect.apple.com/apps/6823797679

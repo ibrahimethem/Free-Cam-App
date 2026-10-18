@@ -16,8 +16,9 @@ without OBS. No account, subscription, analytics or cloud video relay.
 - Installing the optional NoSub Camera extension requires macOS approval.
   Native webcam output is 1080p30. Receiving/previewing works without it.
 
-**iOS availability:** NoSub Cam's initial TestFlight and App Store reviews are
-being prepared separately. The desktop does not replace the iPhone app; a beta
+**iOS availability:** NoSub Cam 1.0.0 (2) was submitted to both TestFlight Beta
+App Review and App Store Review on October 18, 2026; both await Apple review.
+App Store publication remains manual. The desktop does not replace the iPhone app; a beta
 invitation is usable only after Apple's external-testing approval.
 
 **Windows:** Windows 11 x64 has been tested, but the signed production installer
