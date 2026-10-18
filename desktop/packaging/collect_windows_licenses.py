@@ -4,6 +4,7 @@ from importlib import metadata
 import json
 from pathlib import Path, PurePosixPath
 import shutil
+import re
 import ssl
 import sys
 import tarfile
@@ -13,6 +14,14 @@ import zipfile
 from collect_macos_licenses import ROOT, QT_VERSION, SOURCES, digest, is_notice, source_url
 
 MODULES = ('qtbase', 'qtsvg', 'qtimageformats', 'qttranslations', 'pyside-setup')
+
+
+def validate_python_license(text):
+    # OpenSSL 3's LICENSE.txt is the generic Apache text, without "OpenSSL".
+    # CPython concatenates it after its CRT/bzip2/libffi notices.
+    for required in ('Apache License', 'Microsoft Distributable Code', 'libffi'):
+        if required.lower() not in text.lower():
+            raise RuntimeError('Official Python Windows binary notices are incomplete: ' + required)
 
 
 def fetch(url, target, expected=None):
@@ -62,10 +71,13 @@ def main():
     # bzip2 notices; the short source-tree PSF license is not a substitute.
     python_license = Path(sys.base_prefix) / 'LICENSE.txt'
     text = python_license.read_text(encoding='utf-8')
-    for required in ('OpenSSL', 'Microsoft', 'ffi'):
-        if required.lower() not in text.lower():
-            raise RuntimeError('Official Python Windows binary notices are incomplete: ' + required)
+    validate_python_license(text)
     shutil.copyfile(python_license, output / 'Python-Windows-LICENSE.txt')
+    openssl_version = ssl.OPENSSL_VERSION.split()[1]
+    if not re.fullmatch(r'3\.\d+\.\d+', openssl_version):
+        raise RuntimeError('Review notices for this OpenSSL version')
+    license_url = f'https://raw.githubusercontent.com/openssl/openssl/openssl-{openssl_version}/LICENSE.txt'
+    fetch(license_url, output / 'OpenSSL-LICENSE.txt')
     python_version = sys.version.split()[0]
     url = f'https://www.python.org/ftp/python/{python_version}/Python-{python_version}.tar.xz'
     archive = cache / f'Python-{python_version}.tar.xz'

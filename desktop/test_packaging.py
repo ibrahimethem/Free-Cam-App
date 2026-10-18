@@ -59,6 +59,14 @@ class PackagingTests(unittest.TestCase):
         self.assertFalse(module.known_dll(Path('Qt6VirtualKeyboard.dll')))
         self.assertFalse(module.known_dll(Path('opengl32sw.dll')))
 
+    def test_python_windows_license_requires_binary_dependency_notices(self):
+        import sys
+        with patch.object(sys, 'path', [str(Path(__file__).parent / 'packaging'), *sys.path]):
+            module = packaging_module('collect_windows_licenses')
+        module.validate_python_license('Apache License\nMicrosoft Distributable Code\nlibffi')
+        with self.assertRaises(RuntimeError):
+            module.validate_python_license('PSF source license with an office address')
+
 
 if __name__ == '__main__':
     unittest.main()
