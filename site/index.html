@@ -33,7 +33,7 @@
           <a class="button" href="download/">Get NoSub Cam</a>
           <a class="button secondary" href="#how-it-works">See how it works</a>
         </div>
-        <p class="microcopy">Free companion apps · iOS 26+ · macOS and Windows receiver</p>
+        <p class="microcopy">Free companion apps · iOS 26+ · Apple Silicon Mac · Windows 11 x64</p>
       </div>
       <div class="icon-stage" aria-label="NoSub Cam app icon">
         <img src="assets/app-icon.png" alt="NoSub Cam icon: a signal-shaped N in warm orange and ivory">
@@ -48,8 +48,8 @@
         </div>
         <div class="grid-three">
           <article class="card"><span class="card-number">01</span><h3>Open NoSub Studio</h3><p>Choose Wi-Fi or Direct USB on your Mac or Windows PC and start the local receiver.</p></article>
-          <article class="card"><span class="card-number">02</span><h3>Pair your iPhone</h3><p>Enter the displayed receiver address and temporary pairing key in NoSub Cam.</p></article>
-          <article class="card"><span class="card-number">03</span><h3>Use your picture</h3><p>Preview and adjust the camera, then route the stream through OBS Virtual Camera when another app needs it.</p></article>
+          <article class="card"><span class="card-number">02</span><h3>Scan once. Remember the link.</h3><p>Show the pairing QR in NoSub Studio and scan it on iPhone. Both apps remember the pairing; reset it whenever you choose.</p></article>
+          <article class="card"><span class="card-number">03</span><h3>Use NoSub Camera</h3><p>Install and approve the desktop camera component, enable output, then select NoSub Camera in your video app. OBS is optional.</p></article>
         </div>
       </div>
     </section>
@@ -58,20 +58,21 @@
       <div class="shell">
         <div class="section-heading">
           <div><div class="section-label">02 / Mobile camera</div><h2>Focused before the first frame.</h2></div>
-          <p>The iPhone app keeps setup compact: a 16:9 monitor, one connection panel, a clear status surface, and a single persistent streaming action.</p>
+          <p>Scan the desktop pairing QR, allow Camera and Local Network access, and start streaming. Connection, status, and the streaming action stay together on one screen.</p>
         </div>
         <div class="mobile-showcase">
           <figure class="phone-shot">
-            <img src="assets/ios-preview.png" alt="NoSub Cam iPhone interface showing its camera monitor and local connection controls" width="506" height="1100">
+            <img src="assets/ios-preview.png?v=a8dddfe45ac6" alt="Current NoSub Cam iPhone interface with Wi-Fi and Direct USB tabs, Scan pairing QR, and Start streaming" width="1320" height="2868" loading="lazy" decoding="async">
           </figure>
           <div class="mobile-copy">
             <div class="interface-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
             <h3>One screen, one job.</h3>
-            <p>The idle monitor uses the same camera symbol as NoSub Studio. The flat anthracite surfaces, compact corners, and warm orange controls carry one visual language across both devices.</p>
+            <p>The phone handles capture. NoSub Studio handles the camera controls. Flat anthracite surfaces, compact corners, and warm orange controls keep the same visual language across both devices.</p>
             <dl class="detail-list">
               <div><dt>Connection</dt><dd>Wi-Fi or Direct USB</dd></div>
-              <div><dt>Camera</dt><dd>Front or rear</dd></div>
-              <div><dt>Legal access</dt><dd>Privacy, terms, and support inside the app</dd></div>
+              <div><dt>Pairing</dt><dd>Scan the QR once; saved securely on your devices</dd></div>
+              <div><dt>Camera</dt><dd>Front/rear, orientation, resolution, and frame rate from NoSub Studio</dd></div>
+              <div><dt>Legal access</dt><dd>Privacy, terms, and support links in the app</dd></div>
             </dl>
           </div>
         </div>
@@ -82,11 +83,11 @@
       <div class="shell">
         <div class="section-heading">
           <div><div class="section-label">03 / Studio controls</div><h2>The useful controls stay visible.</h2></div>
-          <p>Camera selection, resolution, pairing, live preview, exposure, focus, white balance, and zoom share one compact desktop workspace.</p>
+          <p>Camera settings and presets on the left. Preview in the center. Pairing and webcam output on the right. Settings apply as you change them.</p>
         </div>
         <figure class="studio-shot">
-          <img src="assets/studio-preview.png" alt="NoSub Studio desktop interface showing connection settings, a large preview, and camera controls" width="1600" height="1029">
-          <figcaption>NoSub Studio demo mode · simulated camera image and sensor values</figcaption>
+          <a href="assets/studio-preview.png?v=416f45f41c4d" aria-label="Open the current NoSub Studio screenshot at full size"><img src="assets/studio-preview.png?v=416f45f41c4d" alt="Current NoSub Studio Windows beta: camera, native landscape, resolution, FPS and presets on the left; preview in the center; QR pairing and webcam output on the right" width="1400" height="900" loading="lazy" decoding="async"></a>
+          <figcaption>NoSub Studio · Windows public beta 1 · Demo mode, no iPhone connected. Preview and sensor values are simulated; camera setup and output are disabled in demo mode. <a href="assets/studio-preview.png?v=416f45f41c4d">View full size →</a></figcaption>
         </figure>
       </div>
     </section>
@@ -99,8 +100,8 @@
         </div>
         <div class="spec-grid">
           <article class="spec"><h3>Wi-Fi or Direct USB</h3><p>Use a trusted local Wi-Fi network or connect through Apple's local USB device service.</p></article>
-          <article class="spec"><h3>Manual camera control</h3><p>Adjust supported ISO, shutter, focus, white balance, zoom, and capture resolution from the desktop.</p></article>
-          <article class="spec"><h3>Front and rear cameras</h3><p>Select the camera on your iPhone and use the supported modes reported by the device.</p></article>
+          <article class="spec"><h3>Camera controls and presets</h3><p>Select front or rear, resolution, and frame rate from the desktop. Adjust supported exposure, focus, white balance, and zoom, and save presets for next time.</p></article>
+          <article class="spec"><h3>Native webcam output</h3><p>Select NoSub Camera in your video app for 1080p30 output, without OBS. Approve the extension on Mac or install the camera component on Windows.</p></article>
           <article class="spec"><h3>No account or tracking</h3><p>No developer-operated backend, advertising network, analytics SDK, or subscription system.</p></article>
         </div>
         <div class="notice"><strong>Security note</strong><p>Wi-Fi mode uses unencrypted HTTP on your local network. Use a private network you trust, protect pairing details, and never expose the receiver port to the public internet.</p></div>

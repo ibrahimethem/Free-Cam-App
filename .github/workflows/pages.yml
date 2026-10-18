@@ -31,6 +31,8 @@ jobs:
         uses: actions/configure-pages@v5
       - name: Validate release download links
         run: node site-tests/downloads.cjs
+      - name: Validate current screenshots and product copy
+        run: node site-tests/content.cjs
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
