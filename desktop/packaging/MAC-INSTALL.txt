@@ -17,4 +17,10 @@ To remove: first use Remove camera in NoSub Studio and approve the macOS
 extension removal, then Quit and move the application to the Trash. Presets and
 secure pairing are preserved. Reset pairing in the app first to revoke the key.
 
-Privacy and support: https://nosubcam.ethemkarali.com
+Privacy and support: https://ibrahimethem.github.io/Free-Cam-App/
+
+Open-source components: Qt/PySide/Shiboken are dynamically linked under LGPLv3;
+other dependencies retain their own licenses. In Finder, Show Package Contents
+and open Contents/Resources/licenses for license texts and modification/build
+instructions. Matching Qt/PySide sources are free beside this DMG on GitHub:
+https://github.com/ibrahimethem/Free-Cam-App/releases

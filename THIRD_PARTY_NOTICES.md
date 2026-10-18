@@ -24,11 +24,18 @@ Foundation approval for signing this derived DLL must be confirmed separately.
 
 Python, PySide6/Qt, Shiboken, qrcode, keyring and its transitive dependencies,
 plus platform-specific libraries collected by PyInstaller, retain their own
-licenses. Mac packages also collect Qt Multimedia and FFmpeg libraries.
+licenses. Mac packages use Qt Multimedia's Apple/AVFoundation backend; the
+unused FFmpeg backend, Qt Virtual Keyboard, QML/Quick and Pillow are excluded.
 PyInstaller has its own license and bootloader exception. NoSub's MIT license
 does not replace any of these licenses or authorize relicensing their code.
 
-Before public binary distribution, enumerate the exact collected libraries,
+The Mac build collects upstream notices into `licenses/runtime` and publishes
+matching Qt/PySide source archives beside the DMG. See
+`desktop/packaging/THIRD-PARTY-SOURCES.md` and the generated inventory for source
+access and modification/rebuild information. The Windows runtime audit remains
+a separate release gate.
+
+For each public binary distribution, enumerate the exact collected libraries,
 include their required notices/licenses, and document corresponding source and
 replacement/relinking provisions where applicable. Do not sign upstream runtime
 DLLs under the NoSub/SignPath project certificate merely because they are bundled.

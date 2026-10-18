@@ -3,14 +3,20 @@ NoSub Cam sends camera video directly to the user's own computer. It has no acco
 Testing requires the free NoSub Studio desktop companion. Download it from:
 https://ibrahimethem.github.io/Free-Cam-App/download/
 
-Wi-Fi test:
-1. Open NoSub Studio and select NoSub Cam — Wi-Fi.
-2. Enter the displayed local address and pairing key in the iPhone app.
-3. Keep both devices on the same private Wi-Fi network and tap Start streaming.
+Direct Mac download (Developer ID signed and Apple notarized):
+https://github.com/ibrahimethem/Free-Cam-App/releases/download/v1.0.0/NoSub-Studio-1.0.0-macOS-Apple-Silicon.dmg
+Requires an Apple Silicon Mac running macOS 14.4 or later. Drag NoSub Studio to Applications, eject the DMG, and open the app. No account, payment, OBS, Python installation, or separate hardware accessory is required. Please use the available Mac companion; the signed Windows installer is not yet publicly available.
 
-Direct USB test:
-1. Connect and trust the iPhone with a USB data cable.
-2. Select Direct USB in both apps and use the displayed pairing key.
-3. Tap Start streaming.
+Wi-Fi test:
+1. Keep the Mac and iPhone on the same private Wi-Fi network and allow local-network access. If using a VPN, allow LAN traffic or disconnect the VPN for this test.
+2. Open NoSub Studio, select NoSub Cam — Wi-Fi, and click Show pairing QR.
+3. In NoSub Cam on iPhone, use Scan pairing QR. Alternatively, enter the displayed local address and pairing key manually.
+4. Allow Camera and Local Network permissions when requested, then tap Start streaming. Keep NoSub Cam in the foreground while streaming.
+5. The video appears in NoSub Studio. Change the front/rear camera, resolution, frame rate, and supported camera settings from the desktop controls.
+
+Optional native webcam output:
+The desktop preview works without installing the camera extension. To also use the video in a video-calling app, choose Install NoSub Camera in NoSub Studio, approve the macOS camera extension when prompted (System Settings > General > Login Items & Extensions > Camera Extensions), then Enable NoSub Camera. Select NoSub Camera in the video app. Native output is 1080p30.
+
+Direct USB is an alternative connection mode; Wi-Fi is sufficient to evaluate the complete iPhone capture and desktop-control workflow. No demo login is needed; the pairing key is generated locally by the reviewer's desktop companion.
 
 Camera and Local Network permissions are used only for direct camera streaming to the selected receiver. Wi-Fi video uses unencrypted local HTTP and must not be exposed to the public internet.

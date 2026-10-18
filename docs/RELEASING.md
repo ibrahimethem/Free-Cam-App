@@ -24,6 +24,13 @@ executable architecture. It supplies a styled drag-to-Applications window,
 product icon, instructions and Developer ID signature. Notarize/staple the
 outer DMG too; its SHA-256 sidecar is regenerated after stapling.
 
+`desktop/build.py` first collects pinned upstream Qt/PySide source archives and
+runtime license notices. Publish the generated Third-Party-Sources.zip and its
+checksum **alongside** the Mac DMG, not merely a link to upstream. The app embeds
+notices and modification/rebuild instructions. The Mac runtime excludes unused
+Qt Virtual Keyboard, QML/Quick, FFmpeg and Pillow. After any dependency upgrade,
+review the pins, actual bundle contents and native linkage before publishing.
+
 Current target: **Apple Silicon, macOS 14.4+** (bundled Qt minimum). The camera extension is universal,
 but the Python/Qt runtime is not. Intel and minimum-OS runtime testing remain
 release gates. Quit the installed app before replacing it; closing the window
