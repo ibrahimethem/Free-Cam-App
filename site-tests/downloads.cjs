@@ -7,8 +7,8 @@ const source = fs.readFileSync(path.join(root, 'site/assets/downloads.js'), 'utf
 
 async function render(release, fails = false) {
   const cards = Object.fromEntries(['macos', 'windows'].map(platform => {
-    const fields = Object.fromEntries(['download', 'checksum', 'pending', 'status'].map(name =>
-      [`[data-${name}]`, { hidden: name === 'download' || name === 'checksum' }]));
+    const fields = Object.fromEntries(['download', 'checksum', 'pending', 'status', 'beta-warning', 'beta-notes'].map(name =>
+      [`[data-${name}]`, { hidden: ['download', 'checksum', 'beta-warning', 'beta-notes'].includes(name) }]));
     return [platform, { fields, querySelector: selector => fields[selector] }];
   }));
   await vm.runInNewContext(source, {
@@ -42,9 +42,24 @@ async function render(release, fails = false) {
   cards = await render({ version: '1.0.0', macos: { published: true }, windows: { published: false } });
   assert.equal(cards.macos.fields['[data-download]'].hidden, false);
   assert.equal(cards.windows.fields['[data-download]'].hidden, true);
+  const betaRelease = { version: '1.0.0', macos: { published: true }, windows: { published: false, beta: { published: true, number: 1 } } };
+  cards = await render(betaRelease);
+  assert.equal(cards.windows.fields['[data-download]'].href,
+    'https://github.com/ibrahimethem/Free-Cam-App/releases/download/v1.0.0-windows-beta.1/NoSub-Studio-1.0.0-Windows-x64-Public-Beta-1-Setup.exe');
+  assert.match(cards.windows.fields['[data-status]'].textContent, /UNSIGNED/);
+  assert.equal(cards.windows.fields['[data-beta-warning]'].hidden, false);
+  assert.equal(cards.macos.fields['[data-beta-warning]'].hidden, true);
+  assert.equal(cards.windows.fields['[data-checksum]'].href, cards.windows.fields['[data-download]'].href + '.sha256');
+  cards = await render({ ...betaRelease, windows: { ...betaRelease.windows, published: true } });
+  assert.match(cards.windows.fields['[data-status]'].textContent, /signed release/);
+  assert.equal(cards.windows.fields['[data-beta-warning]'].hidden, true);
+  for (const number of ['1', '../bad', 0, -1, 1000, 1.5]) {
+    cards = await render({ ...betaRelease, windows: { published: false, beta: { published: true, number } } });
+    assert.equal(cards.windows.fields['[data-download]'].hidden, true);
+  }
   for (const [release, offline] of [[{ version: '../bad', macos: { published: true } }, false], [{ version: '1.0.0', macos: { published: 'true' } }, false], [null, true]]) {
     cards = await render(release, offline);
     assert.equal(cards.macos.fields['[data-download]'].hidden, true);
   }
-  console.log('Download links: pending, published, per-platform, checksums, invalid configuration and offline checks passed');
+  console.log('Download links: signed/beta separation, pending, per-platform, checksums, invalid configuration and offline checks passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

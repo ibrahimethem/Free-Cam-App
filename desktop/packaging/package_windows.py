@@ -18,6 +18,24 @@ def package_name(version, public_beta=False):
     return f'NoSub-Studio-{version}-Windows-x64-{channel}-Setup'
 
 
+def prepare_installer_license(root):
+    # Preserve the Windows binary build's CRT redistribution conditions in the
+    # installer's agreement, not just as a file discoverable after installation.
+    runtime = root / 'dist/FreeCam/_internal/licenses/runtime/Python-Windows-LICENSE.txt'
+    notice = runtime.read_text(encoding='utf-8')
+    if 'Microsoft Distributable Code' not in notice:
+        raise RuntimeError('Windows runtime redistribution conditions missing')
+    output = root / 'build/windows-installer-license.txt'
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text((root / 'LICENSE').read_text(encoding='utf-8') +
+        '\n\nTHIRD-PARTY SOFTWARE\n\nNoSub\'s MIT license does not replace third-party '
+        'licenses. Qt/PySide/Shiboken are LGPLv3; their notices and source/rebuild '
+        'instructions are installed under _internal/licenses/runtime. The Microsoft '
+        'component restrictions below apply only to Microsoft Distributable Code, '
+        'not NoSub or the LGPL libraries.\n\n' + notice, encoding='utf-8')
+    return output
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--allow-unsigned', action='store_true', help='Explicit TEST installer; not a production release')
@@ -38,6 +56,7 @@ def main():
             parser.error('Run python desktop/build.py --native-camera first: missing ' + file)
     version = (ROOT / 'desktop/VERSION').read_text().strip()
     name = package_name(version, args.public_beta)
+    prepare_installer_license(ROOT)
     if args.public_beta:
         import json
         inventory = ROOT / 'dist/FreeCam/_internal/licenses/runtime/inventory.json'

@@ -26,6 +26,29 @@
       card.querySelector('[data-pending]').hidden = true;
       card.querySelector('[data-status]').textContent = `Version ${release.version} · signed release`;
     }
+    // A beta is a separate opt-in channel, never a signed-production flag.
+    const beta = release.windows?.beta;
+    if (release.windows?.published !== true && beta?.published === true &&
+        Number.isInteger(beta.number) && beta.number > 0 && beta.number < 1000) {
+      const card = document.querySelector('[data-platform="windows"]');
+      if (!card) return;
+      const tag = `v${release.version}-windows-beta.${beta.number}`;
+      const filename = `NoSub-Studio-${release.version}-Windows-x64-Public-Beta-${beta.number}-Setup.exe`;
+      const url = `https://github.com/ibrahimethem/Free-Cam-App/releases/download/${tag}/${filename}`;
+      const download = card.querySelector('[data-download]');
+      download.href = url;
+      download.textContent = 'Download Windows public beta';
+      download.hidden = false;
+      card.querySelector('[data-pending]').hidden = true;
+      const checksum = card.querySelector('[data-checksum]');
+      checksum.href = url + '.sha256';
+      checksum.hidden = false;
+      card.querySelector('[data-status]').textContent = `Version ${release.version} · Public beta ${beta.number} · UNSIGNED`;
+      card.querySelector('[data-beta-warning]').hidden = false;
+      const notes = card.querySelector('[data-beta-notes]');
+      notes.href = `https://github.com/ibrahimethem/Free-Cam-App/releases/tag/${tag}`;
+      notes.hidden = false;
+    }
   } catch {
     // Keep honest pending states and the working Releases link on any failure.
   }

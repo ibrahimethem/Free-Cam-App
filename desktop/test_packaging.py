@@ -67,6 +67,19 @@ class PackagingTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             module.validate_python_license('PSF source license with an office address')
 
+    def test_installer_preserves_microsoft_conditions_without_relicensing_qt(self):
+        module = packaging_module('package_windows')
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'LICENSE').write_text('MIT License', encoding='utf-8')
+            notice = root / 'dist/FreeCam/_internal/licenses/runtime/Python-Windows-LICENSE.txt'
+            notice.parent.mkdir(parents=True)
+            notice.write_text('Microsoft Distributable Code: original conditions', encoding='utf-8')
+            text = module.prepare_installer_license(root).read_text(encoding='utf-8')
+            self.assertIn('MIT License', text)
+            self.assertIn('original conditions', text)
+            self.assertIn('not NoSub or the LGPL libraries', text)
+
 
 if __name__ == '__main__':
     unittest.main()

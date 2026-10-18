@@ -44,7 +44,7 @@ InfoBeforeFile={#RepoRoot}\desktop\packaging\WINDOWS-BETA.txt
 #else
 InfoBeforeFile={#RepoRoot}\desktop\packaging\WINDOWS-INSTALL.txt
 #endif
-LicenseFile={#RepoRoot}\LICENSE
+LicenseFile={#RepoRoot}\build\windows-installer-license.txt
 
 [Languages]
 Name: english; MessagesFile: compiler:Default.isl
