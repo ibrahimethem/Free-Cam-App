@@ -2,6 +2,10 @@ name: Build Windows camera test package
 on:
   workflow_dispatch:
     inputs:
+      public_beta:
+        description: Prepare explicitly UNSIGNED public beta installer (no automatic publication)
+        type: boolean
+        default: false
       request_signing:
         description: Request SignPath signing of project binaries (requires Foundation acceptance and manual approval; not an installer release)
         type: boolean
@@ -38,7 +42,7 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
           PYTHONPATH: desktop
-        run: python -m unittest desktop.test_signing_config desktop.test_packaging desktop.test_pairing desktop.test_background desktop.test_camera_setup desktop.test_virtual_camera desktop.test_windows_camera desktop.test_single_instance desktop.test_desktop.DesktopTests.test_virtual_camera_toggles_do_not_restart_or_block_wifi_receiver
+        run: python -m unittest desktop.test_signing_config desktop.test_packaging desktop.test_runtime_policy desktop.test_pairing desktop.test_background desktop.test_camera_setup desktop.test_virtual_camera desktop.test_windows_camera desktop.test_single_instance desktop.test_desktop.DesktopTests.test_virtual_camera_toggles_do_not_restart_or_block_wifi_receiver
       - name: Build native camera and desktop package (no installation)
         run: python desktop/build.py --native-camera
       - name: Verify project binary metadata and license inclusion
@@ -72,13 +76,35 @@ jobs:
           controller = CameraController(); controller.load();
           print('Packaged native bridge and C ABI loaded; no camera installed')"
       - name: Build unsigned installer (no installation)
+        env:
+          PUBLIC_BETA: ${{ github.event_name == 'workflow_dispatch' && inputs.public_beta }}
         shell: pwsh
         run: |
           if (-not (Test-Path "${env:ProgramFiles(x86)}/Inno Setup 6/ISCC.exe")) {
             throw 'Inno Setup 6 must be available on this build runner'
           }
-          python desktop/packaging/package_windows.py --allow-unsigned
+          python desktop/packaging/verify_windows_bundle.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($env:PUBLIC_BETA -eq 'true') {
+            python desktop/packaging/package_windows.py --allow-unsigned --public-beta
+          } else {
+            python desktop/packaging/package_windows.py --allow-unsigned
+          }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item build/windows-bundle-report.json dist/installers/windows-bundle-report.json
+      - name: Packaged startup smoke test (simulated image, no camera/network setup)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        shell: pwsh
+        run: |
+          $capture = Join-Path $pwd 'build/windows-packaged-demo.png'
+          $process = Start-Process -FilePath 'dist/FreeCam/FreeCam.exe' -ArgumentList @('--demo', '--screenshot', $capture) -PassThru
+          if (-not $process.WaitForExit(30000)) {
+            Stop-Process -Id $process.Id
+            throw 'Packaged demo startup timed out'
+          }
+          if ($process.ExitCode -ne 0 -or -not (Test-Path $capture)) { throw 'Packaged demo failed' }
+          Copy-Item $capture dist/installers/windows-packaged-demo.png
       - name: Upload unsigned installer (not a public release)
         uses: actions/upload-artifact@v4
         with:
@@ -97,7 +123,7 @@ jobs:
   # First signing phase only. Separate protected job: PR/test builds cannot
   # access the environment token. Installer/uninstaller signing remains pending.
   sign_project_binaries:
-    if: github.event_name == 'workflow_dispatch' && inputs.request_signing && github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' && inputs.request_signing && !inputs.public_beta && vars.SIGNPATH_APPROVED == 'true' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: windows-2025
     timeout-minutes: 30

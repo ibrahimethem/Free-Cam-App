@@ -13,9 +13,12 @@
 AppId={{D85B6327-1A15-470D-80CA-88365D40807B}
 AppName=NoSub Studio
 AppVersion={#ProductVersion}
+#ifdef PublicBeta
+AppVerName=NoSub Studio {#ProductVersion} — Unsigned public beta 1
+#endif
 AppPublisher=İbrahim Ethem Karalı
-AppPublisherURL=https://nosubcam.ethemkarali.com
-AppSupportURL=https://nosubcam.ethemkarali.com
+AppPublisherURL=https://ibrahimethem.github.io/Free-Cam-App/
+AppSupportURL=https://ibrahimethem.github.io/Free-Cam-App/support/
 DefaultDirName={autopf}\NoSub Studio
 DefaultGroupName=NoSub Studio
 DisableProgramGroupPage=yes
@@ -36,7 +39,11 @@ RestartApplications=no
 SetupLogging=yes
 VersionInfoVersion={#ProductVersion}
 VersionInfoDescription=NoSub Studio installer
+#ifdef PublicBeta
+InfoBeforeFile={#RepoRoot}\desktop\packaging\WINDOWS-BETA.txt
+#else
 InfoBeforeFile={#RepoRoot}\desktop\packaging\WINDOWS-INSTALL.txt
+#endif
 LicenseFile={#RepoRoot}\LICENSE
 
 [Languages]

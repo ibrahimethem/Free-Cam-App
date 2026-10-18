@@ -1,0 +1,34 @@
+NoSub Studio — UNSIGNED PUBLIC BETA 1
+
+This Windows 11 x64 build is a public beta, not a signed production release.
+The application, native camera component, installer and uninstaller are not
+Authenticode signed. Windows may display an unknown-publisher/SmartScreen
+warning or block the software, depending on your security policy.
+
+Do not disable Microsoft Defender, Smart App Control, antivirus protection or
+signature enforcement. Do not install an untrusted root certificate to run it.
+If your system blocks the beta, wait for a signed release.
+
+Download only from the project's official GitHub Releases page and compare
+the SHA-256 checksum. A checksum detects changes but does not replace a trusted
+publisher signature. Use a trusted private network; Wi-Fi video is local HTTP.
+
+Setup installs the desktop app and an uninstaller. The full installation also
+registers NoSub Camera for other video apps without OBS. Administrator approval
+is required for installation, not normal desktop operation. Native output is
+1080p30. Requires NoSub Cam on iPhone and Windows 11 x64.
+
+Quit from the notification-area menu and close video apps before updating or
+uninstalling. Closing the desktop window keeps the app running in the tray.
+Pairing and presets are kept on upgrade/removal; Reset pairing revokes the key.
+
+Use a private network for Wi-Fi. Apple Devices/USB services are separate optional
+prerequisites for Direct USB. No firewall exception or startup task is installed.
+
+Original NoSub code is MIT licensed; third-party licenses remain in effect.
+Runtime notices and modification/rebuild instructions are under
+_internal/licenses/runtime in the installed app. Matching source archives are
+available beside this beta installer on GitHub Releases. No warranty is provided.
+
+Downloads/source: https://github.com/ibrahimethem/Free-Cam-App/releases
+Privacy/support: https://ibrahimethem.github.io/Free-Cam-App/

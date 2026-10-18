@@ -33,7 +33,11 @@ The Mac build collects upstream notices into `licenses/runtime` and publishes
 matching Qt/PySide source archives beside the DMG. See
 `desktop/packaging/THIRD-PARTY-SOURCES.md` and the generated inventory for source
 access and modification/rebuild information. The Windows runtime audit remains
-a separate release gate.
+a separate release gate. Windows builds now collect their own runtime/package
+notices and matching Qt/PySide, Python and PyInstaller sources. See
+`desktop/packaging/WINDOWS-SOURCES.md`; the native bundle verifier records exact
+files/hashes and rejects unreviewed DLLs before beta packaging. Generated Windows
+results must be checked before publishing; the Mac inventory is not substituted.
 
 For each public binary distribution, enumerate the exact collected libraries,
 include their required notices/licenses, and document corresponding source and

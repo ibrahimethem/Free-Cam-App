@@ -1,9 +1,14 @@
 # SignPath Foundation preparation
 
-Status: **eligibility application submitted on October 17, 2026; acceptance and
-signing are pending**. The owner completed reCAPTCHA and the form displayed
-“Form submitted — Thank you, we'll be in touch soon.” No acceptance or account
-credentials have been received through this workflow.
+Status: **initial eligibility application declined, as reported by the owner on
+October 18, 2026**. The reason reported is that the project needs an established
+usage/reputation history. The rejection email was not accessed by this workflow.
+The application was submitted October 17. No Foundation certificate or signing
+credentials have been issued through this workflow. Do not request signing or
+represent acceptance as still pending. Existing integration remains inactive.
+
+The owner accepts an unsigned public beta as a fallback. Store/MSIX feasibility
+and remaining beta publication gates are documented in [WINDOWS-STORE.md](WINDOWS-STORE.md).
 Owner approved MIT licensing of original project code and Foundation publisher
 identity on October 17, 2026. Third-party software retains its original licenses.
 
@@ -33,8 +38,10 @@ identity on October 17, 2026. Third-party software retains its original licenses
 ## Disclosures and prerequisites — do not silently bypass
 
 The Foundation normally expects an already released project with verifiable
-reputation. At preparation time there is **no public release**: Mac DMG is locally
-signed/notarized, Windows installer exists as an unsigned Actions test artifact.
+reputation. At application preparation time there was **no public release**: Mac DMG was locally
+signed/notarized, Windows installer existed as an unsigned Actions test artifact.
+Mac 1.0.0 has since been publicly released; the Windows installer remains an
+unsigned test artifact. This does not by itself establish a user/reputation history.
 Do not put an Actions URL forward as a public, account-free release download.
 Ask the Foundation whether a new project at this stage is eligible; acceptance
 must not be represented as automatic.

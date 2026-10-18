@@ -8,6 +8,13 @@ from unittest.mock import patch
 
 from PIL import Image
 from branding import SOURCE_ICON, build_icons, runtime_icon
+import importlib.util
+
+def packaging_module(name):
+    spec = importlib.util.spec_from_file_location(name, Path(__file__).parent / 'packaging' / (name + '.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 class PackagingTests(unittest.TestCase):
@@ -29,9 +36,28 @@ class PackagingTests(unittest.TestCase):
             with Image.open(output / 'NoSubStudio.icns') as picture:
                 self.assertEqual(picture.format, 'ICNS')
                 self.assertIn((512, 512, 2), picture.info['sizes'])
+                with Image.open(SOURCE_ICON) as original:
+                    self.assertEqual(picture.convert('RGBA').tobytes(), original.convert('RGBA').tobytes())
             source = (output / 'windows-version.txt').read_text(encoding='utf-8')
             ast.parse(source)
             self.assertIn("StringStruct('ProductName', 'NoSub Studio')", source)
+
+    def test_beta_and_test_names_are_not_production_names(self):
+        module = packaging_module('package_windows')
+        self.assertIn('-Public-Beta-1-Setup', module.package_name('1.0.0', True))
+        self.assertIn('-TEST-Setup', module.package_name('1.0.0'))
+        with self.assertRaises(ValueError):
+            module.package_name('../invalid', True)
+
+    def test_product_ico_contains_generated_image_payloads(self):
+        module = packaging_module('verify_windows_bundle')
+        with tempfile.TemporaryDirectory() as directory:
+            output = build_icons(Path(directory))
+            payloads = module.ico_payloads(output / 'NoSubStudio.ico')
+            self.assertGreaterEqual(len(payloads), 7)
+        self.assertTrue(module.known_dll(Path('Qt6Widgets.dll')))
+        self.assertFalse(module.known_dll(Path('Qt6VirtualKeyboard.dll')))
+        self.assertFalse(module.known_dll(Path('opengl32sw.dll')))
 
 
 if __name__ == '__main__':

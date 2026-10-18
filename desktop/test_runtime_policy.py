@@ -25,6 +25,14 @@ class RuntimePolicyTests(unittest.TestCase):
         for name in ('libdarwinmediaplugin.dylib', 'libqjpeg.dylib', 'libNoSubCamera.dylib'):
             self.assertTrue(policy.include_macos_binary(name))
 
+    def test_windows_unused_os_shims_and_backends_are_excluded(self):
+        for name in ('api-ms-win-crt-time-l1-1-0.dll', 'ucrtbase.dll', 'icuuc.dll',
+                     'opengl32sw.dll', 'qopensslbackend.dll', 'libcrypto-3.dll', 'libssl-3.dll'):
+            self.assertFalse(policy.include_windows_binary('PySide6/' + name))
+        for name in ('Qt6Widgets.dll', 'qwindows.dll', 'qschannelbackend.dll',
+                     'libcrypto-3-x64.dll', 'libssl-3-x64.dll', 'NoSubCamera.dll', 'VCRUNTIME140.dll'):
+            self.assertTrue(policy.include_windows_binary(name))
+
 
 if __name__ == '__main__':
     unittest.main()

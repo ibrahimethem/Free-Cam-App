@@ -69,6 +69,30 @@ create an unsigned release. Obtain a signing identity/service, then integrate
 signing of app, DLL, setup helper, uninstaller and outer installer. Never commit
 a PFX/password/service token. Do not disable Windows security to test packages.
 
+The owner approved an explicitly unsigned public beta after SignPath declined
+the initial eligibility application. Prepare it with:
+
+```powershell
+python desktop/build.py --native-camera
+python desktop/packaging/verify_windows_bundle.py
+python desktop/packaging/package_windows.py --allow-unsigned --public-beta
+```
+
+Or dispatch `windows-camera.yml` with `public_beta=true`, `request_signing=false`.
+This does not publish anything. The output filename contains `Public-Beta-1`;
+the installer displays the unsigned warning. The build includes Windows runtime
+notices, a matching Windows source archive, and a native-file hash/icon report.
+The verifier checks the embedded EXE icon against the ICO generated from the
+mobile artwork. Unknown native DLLs fail the audit for review. Unused Mesa,
+Qt OpenSSL backend/libraries and Windows 11's built-in UCRT/API shims are excluded.
+Python's own OpenSSL x64 libraries remain, with official binary license notices.
+
+Keep beta and signed production publication distinct. Do not enable the site's
+signed Windows `published` flag for this beta, overwrite the stable Mac assets,
+or claim Store certification. A public beta needs its own release/channel label,
+checksum, matching sources and honest testing limitations. Later signing can
+retain the stable installer AppId and settings/pairing locations.
+
 ### Remaining publication gates
 
 - Clean install, first launch, camera approval/output, Wi-Fi/USB, background and

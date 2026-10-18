@@ -86,8 +86,14 @@ Since then the owner has tested Windows, the installer has been implemented, and
 iOS build 2 has been uploaded and submitted as stated above. The original build 1
 and earlier pending-upload statements do not describe the current submission.
 
-**Windows public download stays disabled.** SignPath Foundation application is
-submitted and approval is pending. The protected `windows-signing` environment
+**Windows public download stays disabled.** The owner reports that SignPath
+Foundation declined the initial application due to insufficient established
+usage/reputation history. Approval is not pending. Store/MSIX assessment found
+that the current native camera needs a separate system-wide COM installation;
+a self-contained Store-signed solution is not yet demonstrated. The owner accepts
+an unsigned public beta as fallback; its Windows dependency audit and publication
+checks remain outstanding. See [Windows Store assessment](../WINDOWS-STORE.md).
+The protected `windows-signing` environment
 is main-only with owner review. No signing API token has been installed. Windows
 runtime license audit and complete production installer/uninstaller signing
 remain separate gates; unsigned Actions artifacts are not signed public releases.

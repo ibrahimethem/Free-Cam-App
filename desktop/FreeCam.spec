@@ -19,6 +19,11 @@ if sys.platform == 'darwin':
     if not (notices / 'inventory.json').is_file():
         raise RuntimeError('Run desktop/build.py to prepare Mac runtime notices first')
     camera_data.append((str(notices), 'licenses/runtime'))
+if sys.platform == 'win32':
+    notices = root / 'build/windows-runtime-licenses'
+    if not (notices / 'inventory.json').is_file():
+        raise RuntimeError('Run desktop/build.py to prepare Windows runtime notices first')
+    camera_data.append((str(notices), 'licenses/runtime'))
 if sys.platform == 'win32' and (windows_camera / 'Release' / 'NoSubCamera.dll').is_file():
     for name in ('NoSubCamera.dll', 'NoSubCameraSetup.exe'):
         path = windows_camera / 'Release' / name
@@ -42,8 +47,9 @@ if sys.platform == 'darwin':
 if sys.platform == 'win32':
     # Qt 6.12 uses the Windows ICU API (unsuffixed exports). The bundled development
     # runtime puts a different ICU DLL on PATH; do not let it shadow the OS DLL.
-    a.binaries = [entry for entry in a.binaries
-                  if Path(entry[0]).name.lower() not in ('icuuc.dll', 'icudt78.dll')]
+    sys.path.insert(0, str(root / 'desktop/packaging'))
+    from runtime_policy import include_windows_binary
+    a.binaries = [entry for entry in a.binaries if include_windows_binary(entry[0])]
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name='FreeCam',
           icon=str(brand / 'NoSubStudio.ico') if sys.platform == 'win32' else None,

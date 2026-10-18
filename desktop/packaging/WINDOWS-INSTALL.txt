@@ -21,5 +21,5 @@ Uninstall through Windows Settings > Apps > Installed apps. Presets and secure
 pairing credentials are preserved. Use Reset pairing in the app to revoke a key.
 NoSub Camera is removed when uninstalling a full installation.
 
-Privacy and support: https://nosubcam.ethemkarali.com
+Privacy and support: https://ibrahimethem.github.io/Free-Cam-App/
 No accounts, subscriptions or cloud video relay.

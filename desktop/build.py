@@ -15,6 +15,8 @@ if args.native_camera and sys.platform not in ("darwin", "win32"):
     parser.error("Native camera packaging requires macOS or Windows 11")
 if args.native_camera and sys.platform == "win32":
     subprocess.run([sys.executable, str(root / "desktop/native/windows/build.py")], check=True)
+if sys.platform == "win32":
+    subprocess.run([sys.executable, str(root / "desktop/packaging/collect_windows_licenses.py")], check=True)
 if sys.platform == "darwin":
     subprocess.run([sys.executable, str(root / "desktop/packaging/collect_macos_licenses.py")], check=True)
 subprocess.run([sys.executable, "-m", "PyInstaller", "--noconfirm",
